@@ -162,7 +162,7 @@ unzip = pe.MapNode(
 )
 
 # --------- A. Generate design information - Specify the SPM model
-modeler = Node(
+modeler = pe.Node(
     model.SpecifySPMModel(
         concatenate_runs = False, # treat runs as a single continuous series (fixed effects)!
         input_units  = 'secs',
@@ -172,7 +172,7 @@ modeler = Node(
 )
 
 # --------- B. Level1Design - Generate an SPM design matrix
-designer = Node(
+designer = pe.Node(
     spm.Level1Design(
         bases = {'hrf': {'derivs': hrf_dervs}},
         timing_units = 'secs',
@@ -182,7 +182,7 @@ designer = Node(
 )
 
 # --------- C. Estimate Model - Estimate the parameters of the model.
-estimator = Node(
+estimator = pe.Node(
     spm.EstimateModel(estimation_method = {'Classical': 1}),
     name = 'estimator'
 )
