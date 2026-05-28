@@ -1,9 +1,72 @@
-def timDev(logfilepaths):
+def localizer(logfilepath):
     """
-    Parse logfiles into design matrix for the 'timDev' paradigm with 21 conditions.
+    Parse logfiles into design matrix in NiPype Bunch format.
+
+    Parameters:
+        logfilepaths (list): List of file paths to logfiles.
+
+    Returns:
+        list: A list of Bunch objects containing design information.
+    """
+    import csv
+    from nipype.interfaces.base import Bunch
+    
+    # Get info on stimuli onset, duration and key presses.
+    sounds, silences, keypress, sound_prev = [], [], [], []
+    with open(logfilepath, 'r') as logfile:
+        
+        next(logfile) # Skip header row
+        
+        # Determine the delimiter of the logfiles automatically
+        # BIDS-standard assumes tab-separated .event files ;)
+        sample  = logfile.read(3000); logfile.seek(0)
+        dialect = csv.Sniffer().sniff(sample, delimiters = [";", "\t" , ","])
+        logTsv  = csv.reader(logfile, delimiter="\t")
+        
+        next(logTsv) # Skip header row again
+        for line in logTsv:
+            event     = {'onset': float(line[0]), 'duration': float(line[1])}
+            stim_file = line[2]
+
+            # Silences
+            if stim_file == 'null_event.wav':
+                silences.append(event)
+
+            # Sounds with key press during
+            elif stim_file.startswith('s3'):
+                if stim_file != sound_prev:
+                    sounds.append(event)
+                    sound_prev = stim_file
+                else:
+                    if line[4] != 'n/a':
+                        keypress.append(event)
+
+            # Sounds with key press after
+            elif stim_file == 'n/a':
+                if line[4] != 'n/a':
+                    keypress.append(event)
+            else:
+                print('WARNING: Skipping unrecognised line "{}"'.format(line))
+
+    # Incorporate into design info
+    conditions = ['sound', 'silence', 'keypress']
+    onsets     = [[on['onset'] for on in cond] for cond in [sounds, silences, keypress]]
+    durations  = [[du['duration'] for du in cond] for cond in [sounds, silences, keypress]]
+    design_info = Bunch(conditions = conditions,
+                        onsets     = onsets,
+                        durations  = durations)
+    return design_info
+
+def timDev(logfilepaths, pooling):
+    """
+    Parse logfiles into design matrix for the 'timDev' paradigm. 
+    Timing deviancy conditions can be taken as absolute or relative values.
+    Zero is not included as a timing deviancy condition.
 
     Parameters:
         logfilepath (str): Path to the log file.
+        pooling: If True, timing deviants are pooled as abolute values. 
+                 If False, separate conditions for negative and positive values.
 
     Returns:
         list: A list of Bunch objects containing conditions, onsets, and durations.
@@ -57,7 +120,10 @@ def timDev(logfilepaths):
                         deviation = float(pD)
                     elif "n" in delta:
                         nD = delta.strip("n")
-                        deviation = -float(nD)
+                        if pooling:
+                            deviation = float(nD)
+                        else:
+                            deviation = -float(nD)
                     else:
                         deviation = None
 

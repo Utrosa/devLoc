@@ -36,8 +36,8 @@ import nipype.algorithms.modelgen as model  # model specification
 
 # Import custom-made functions (scripts)
 import grabber
-from objects_timDev import grab_objects
-from designs_timDev import timDev
+from objects import grab_objects
+from designs import timDev
 
 # Set the way matlab should be called
 mlab.MatlabCommand.set_default_matlab_cmd("matlab -nodesktop -nosplash")
@@ -183,7 +183,6 @@ else:
 timDev22.connect([
     (infohandle, model_estimate, [("TRs", "TR")]),
     (model_spec, model_estimate, [('session_info', 'session_info')])
-    ])
 ])
 # -------------------------------------------------------------------------------------------------
 # 03. Visualize the Workflow

@@ -3,6 +3,9 @@
 '''
 Grabs objects needed for 1st level GLM analysis in Nipype.
 Grabs functional and anatomical files in native space (T1w) !
+
+If sessions is a list of sessions, returns a list of objects for the
+specified sessions. Same for runs.
 '''
 
 def grab_objects(subID, sessions, anatID, runs, homePath, mriPath):
