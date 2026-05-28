@@ -54,6 +54,7 @@ subjects = [5]
 sessions = [2]
 runs     = ['BLOCK1', 'BLOCK2', 'BLOCK3', 'BLOCK4']
 anat_ses = 2
+pooling = False # If True absolute timing deviancy regressors, if False nominal.
 
 # Experimental design and MRI info
 task = "timDev"
@@ -95,7 +96,7 @@ infohandle = pe.Node(
     ],
         function = grab_objects),
 name = "infohandle"
-    )
+)
 
 infohandle.inputs.subID    = subjects[0]
 infohandle.inputs.sessions = sessions
@@ -111,7 +112,7 @@ infohandle.inputs.mriPath  = str(mriPath)
 # Create a Bunch object by parsing all event files of the
 design_bunch = pe.Node(
     Function(
-        input_names = ["logfilepaths"],
+        input_names = ["logfilepaths", pooling],
         output_names = ["design_info_list"],
         function = timDev
     ),
