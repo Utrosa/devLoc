@@ -1,0 +1,6 @@
+# Untracked folders
+GLM_templates/
+performance_plots/
+
+# Untracked files
+*.png
