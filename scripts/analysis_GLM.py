@@ -112,12 +112,13 @@ infohandle.inputs.mriPath  = str(mriPath)
 # Create a Bunch object by parsing all event files of the
 design_bunch = pe.Node(
     Function(
-        input_names = ["logfilepaths", pooling],
+        input_names = ["logfilepaths", "pooling"],
         output_names = ["design_info_list"],
         function = timDev
     ),
     name = "design_bunch"
 )
+design_bunch.inputs.pooling = pooling
 
 # Unzip functional images (preprocessed BOLD)
 unzip = pe.MapNode(
