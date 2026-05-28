@@ -17,6 +17,9 @@ https://www.brainvoyager.com/bv/doc/UsersGuide/StatisticalAnalysis/FixedEffectsR
 GLM in SPM
 https://nipype.readthedocs.io/en/latest/users/examples/fmri_nipy_glm.html
 '''
+
+# TODO: check T1 vs MNI space inputs ... could be that now it's just T1 space inputs ...
+
 # Import python packages
 from pathlib import Path
 import pandas as pd
@@ -33,6 +36,7 @@ import nipype.interfaces.matlab as mlab  # how to run matlab
 import nipype.pipeline.engine as pe  # pypeline engine
 # import nipype.algorithms.rapidart as ra  # artifact detection
 import nipype.algorithms.modelgen as model  # model specification
+from nipype.algorithms.rapidart import ArtifactDetect # artifact detection
 
 # Import custom-made functions (scripts)
 import grabber
@@ -104,6 +108,36 @@ infohandle.inputs.anatID   = anat_ses
 infohandle.inputs.runs     = runs
 infohandle.inputs.homePath = str(homePath)
 infohandle.inputs.mriPath  = str(mriPath)
+
+# -------------------------------------------------------------------------------------------------
+# 00. Additional preprocessing steps: smoothing (optional) and outlier detection
+# -------------------------------------------------------------------------------------------------
+if smoothing:
+    smooth = pe.Node(interface=spm.Smooth(), name="smooth")
+    smooth.inputs.fwhm = smoothing
+
+# Using intensity and motion parameters to infer parameters
+# CHECK: which threshod to use? is this valid given that fMRIprep realigns data (does it?)?
+# art_detect = pe.MapNode(
+#     ArtifactDetect(),
+#     name = "art_detect",
+#     iterfield = ['in_file']
+# )
+
+# art_detect.inputs.realignment_parameters = 'functional.par'
+# art_detect.inputs.parameter_source = 'FSL'
+# art_detect.inputs.norm_threshold = 1
+# art_detect.inputs.use_differences = [True, False]
+# art_detect.inputs.zintensity_threshold = 3
+
+# TODO: Detect outliers
+# TODO: (art_detect, modeler, [("outlier_files", "outlier_files")]), # Optional: use fMRIprep/Nipype-computed artifacts]),
+# (infohandle, art_detect, [
+#     ("???", "realignment_parameters")
+#     ("bold_paths", "realigned_files"),
+#     ("mask_paths", "mask_type") # CHECK: are these correct masks?
+#     ]),
+
 # -------------------------------------------------------------------------------------------------
 # 01. Specify 1st-level model parameters
 # -------------------------------------------------------------------------------------------------
@@ -127,24 +161,31 @@ unzip = pe.MapNode(
     iterfield=['in_file']
 )
 
-# --------- A. Generate design information - specify the model
-model_spec = pe.Node(
-    interface = model.SpecifySPMModel(),
-    name = "modelspec"
+# --------- A. Generate design information - Specify the SPM model
+modeler = Node(
+    model.SpecifySPMModel(
+        concatenate_runs = False, # treat runs as a single continuous series (fixed effects)!
+        input_units  = 'secs',
+        output_units = 'secs',
+        high_pass_filter_cutoff = 128),
+    name = 'modeler'
 )
-model_spec.inputs.concatenate_runs = True # treat runs as a single continuous series (fixed effects)!
-model_spec.inputs.input_units = 'secs'
-model_spec.inputs.output_units = 'secs'
-model_spec.inputs.high_pass_filter_cutoff = 128 # High filter (default)
 
-# --------- B. Fit the GLM model using nipy and ordinary least square method
-model_estimate = pe.Node(
-    interface = FitGLM(),
-    name = "model_estimate"
-    )
-model_estimate.inputs.model = "spherical"
-model_estimate.inputs.method = "ols"
+# --------- B. Level1Design - Generate an SPM design matrix
+designer = Node(
+    spm.Level1Design(
+        bases = {'hrf': {'derivs': hrf_dervs}},
+        timing_units = 'secs',
+        volterra_expansion_order = (2 if volterra else 1)
+    ),
+    name = 'designer'
+)
 
+# --------- C. Estimate Model - Estimate the parameters of the model.
+estimator = Node(
+    spm.EstimateModel(estimation_method = {'Classical': 1}),
+    name = 'estimator'
+)
 
 # -------------------------------------------------------------------------------------------------
 # 02. Connect the Nodes: Determine the Flow of Data
@@ -158,34 +199,39 @@ timDev22.connect([
     (infohandle, design_bunch, [("log_paths", "logfilepaths")]),
 
     # Generate lists of preprocesed data
-    (infohandle, unzip, [("bold_paths", "in_file")]),
-
-    # Model specs
-    (design_bunch, model_spec, [("design_info_list", "subject_info")]),
-    (infohandle, model_spec, [
-            ("out_paths", "outlier_files"),
-            ("conf_paths", "realignment_parameters"),
-            ("TRs", "time_repetition") # CHECK: TR is a single float
-            ])
-    ])
+    (infohandle, unzip, [("bold_paths", "in_file")])
+])
 
 if smoothing is not None:
-    smooth = pe.Node(interface=spm.Smooth(), name="smooth")
-    smooth.inputs.fwhm = smoothing
     timDev22.connect([
         (unzip, smooth, [("out_file", "in_files")]),
-        (smooth, model_spec, [("smoothed_files", "functional_runs")])
+        (smooth, modeler, [("smoothed_files", "functional_runs")])
     ])
 else:
     timDev22.connect([
-        (unzip, model_spec, [("out_file", "functional_runs")])
+        (unzip, modeler, [("out_file", "functional_runs")])
     ])
 
-# Estimation
 timDev22.connect([
-    (infohandle, model_estimate, [("TRs", "TR")]),
-    (model_spec, model_estimate, [('session_info', 'session_info')])
+
+    # Model specs
+    (design_bunch, modeler, [("design_info_list", "subject_info")]),
+    (infohandle, modeler, [
+            ("out_paths", "outlier_files"),
+            ("conf_paths", "realignment_parameters"),
+            ("TRs", "time_repetition") # CHECK: TR is a single float
+    ]),
+    (modeler, designer, [("session_info", "session_info")]),
+    (infohandle, designer, [("TRs", "interscan_interval")]),
+    (designer, estimator, [("spm_mat_file", "spm_mat_file")]),
+    (estimator, datasink_T1w, [
+        ('spm_mat_file', '1stLevel.@spm_mat'),
+        ('beta_images', '1stLevel.@beta_images'),
+        ('residual_image', '1stLevel.@residuals')
+    ]),
 ])
+
+
 # -------------------------------------------------------------------------------------------------
 # 03. Visualize the Workflow
 # -------------------------------------------------------------------------------------------------
