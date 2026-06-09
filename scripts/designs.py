@@ -1,3 +1,10 @@
+#! /usr/bin/env python
+# Time-stamp: <2026-06-03 m.utrosa@bcbl.eu>
+'''
+Defines functions to create SPM design matrices,
+needed for NiPype workflow. These matrices have
+a format of a Bunch object.
+'''
 def localizer(logfilepath):
     """
     Parse logfiles into design matrix in NiPype Bunch format.
@@ -70,6 +77,7 @@ def timDev(logfilepaths, pooling):
 
     Returns:
         list: A list of Bunch objects containing conditions, onsets, and durations.
+              The list is flattened: no nesting per runs, session, subjects ...
     """
     import csv
     from nipype.interfaces.base import Bunch
@@ -78,7 +86,7 @@ def timDev(logfilepaths, pooling):
 
     for logfilepath in logfilepaths:
         
-        # Get info on stimuli onset, duration and key presses from events.tsv file
+        # Get info on stimuli onset, duration and trial type from events.tsv file
         # Initialize a dictionary to store that info per timing deviation
         events_by_dev = {}
 
@@ -158,3 +166,253 @@ def timDev(logfilepaths, pooling):
         design_info_list.append(design_info)
     
     return design_info_list
+
+def freqDev(logfilepaths):
+    """
+    Parse logfiles into design matrix for the 'freqDev' paradigm. 
+    Frequency conditions are either 0 (standard) or 1 (deviant).
+
+    Parameters:
+        logfilepath (str): Path to the log file with task == "freqDev"
+
+    Returns:
+        list: A list of Bunch objects containing conditions, onsets, and durations.
+              The list is flattened: no nesting per runs, session, subjects ...
+    """
+    import csv
+    from nipype.interfaces.base import Bunch
+
+    design_info_list = []
+
+    for logfilepath in logfilepaths:
+        
+        # Get info on stimuli onset, duration and trial type from events.tsv file
+        # Initialize a dictionary to store that info per timing deviation
+        events_by_freq = {'0': [], '1': []}
+
+        with open(logfilepath, 'r') as logfile:
+            
+            next(logfile)  # Skip header row
+
+            # Auto-detect delimiter (should be tab)
+            sample  = logfile.read(3000); logfile.seek(0)
+            dialect = csv.Sniffer().sniff(sample, delimiters=[";", "\t", ","])
+            
+            # Read the logfile
+            logTsv  = csv.reader(logfile, dialect)
+            next(logTsv)  # Skip header again
+
+            for line in logTsv:
+
+                # Get events
+                onset = float(line[0])
+                duration = float(line[1])
+                event = {'onset': onset, 'duration': duration}
+                
+                # Get trial type
+                frequency_str = line[2]
+
+                # Is it a frequency deviant or not?
+                if frequency_str == "0":
+                    frequency = "0"
+                else:
+                    frequency = "1"
+
+                # Initialize a list for this frequency and append
+                events_by_freq[frequency].append(event)
+
+        # Create conditions
+        conditions = [i for i in events_by_freq.keys()]
+
+        # Extract onsets and durations in the same order as conditions
+        onsets = []
+        durations = []
+        for freq in events_by_freq.keys():
+            onsets.append([e['onset'] for e in events_by_freq[freq]])
+            durations.append([e['duration'] for e in events_by_freq[freq]])
+
+        design_info = Bunch(
+            conditions=conditions,
+            onsets=onsets,
+            durations=durations
+        )
+
+        # Append to list
+        design_info_list.append(design_info)
+    
+    return design_info_list
+
+def timfreqDev(time_log, time_pool):
+    """
+    Joins the events of timDev and freqDev tasks from timDev logpath. 
+
+    Parameters:
+        time_log (str): Path to the log files of timDev task.
+        time_pool: If True, timing deviants are pooled as abolute values. 
+                   If False, separate conditions for negative and positive values.
+
+    Returns:
+        list: A list of Bunch objects containing conditions, onsets, and durations.
+    """
+    import csv
+    from nipype.interfaces.base import Bunch
+    
+    # Nest the timing deviancy function
+    def timDev(time_log, pooling):
+        """
+        Parse logfiles into design matrix for the 'timDev' paradigm. 
+        Timing deviancy conditions can be taken as absolute or relative values.
+        Zero is not included as a timing deviancy condition.
+
+        Parameters:
+            time_log (str): Path to the log file.
+            pooling: If True, timing deviants are pooled as abolute values. 
+                     If False, separate conditions for negative and positive values.
+
+        Returns:
+            list: A Bunch object containing conditions, onsets, and durations.
+        """
+        import csv
+        from nipype.interfaces.base import Bunch
+
+        # Get info on stimuli onset, duration and trial type from events.tsv file
+        # Initialize a dictionary to store that info per timing deviation
+        events_by_dev = {}
+
+        with open(time_log, 'r') as logfile:
+            
+            next(logfile)  # Skip header row
+
+            # Auto-detect delimiter (should be tab)
+            sample  = logfile.read(3000); logfile.seek(0)
+            dialect = csv.Sniffer().sniff(sample, delimiters=[";", "\t", ","])
+            
+            # Read the logfile
+            logTsv  = csv.reader(logfile, dialect)
+            next(logTsv)  # Skip header again
+
+            for line in logTsv:
+
+                # Get events
+                onset = float(line[0])
+                duration = float(line[1])
+                event = {'onset': onset, 'duration': duration}
+                
+                # Get stimulus type
+                deviation_str = line[2]
+                
+                # Initialize deviation to a default value (e.g., None)
+                deviation = None
+
+                # Does the current row correspond to a time deviant tone?
+                if "delta" in deviation_str:
+
+                    # Strip to get the delta
+                    delta_str = deviation_str.split("delta-")[1]
+                    delta = delta_str.split("ms")[0]
+                    
+                    # Figure out the direction: positive or negative delta?
+                    if "p" in delta:
+                        pD = delta.strip("p")
+                        deviation = float(pD)
+                    elif "n" in delta:
+                        nD = delta.strip("n")
+                        if pooling:
+                            deviation = float(nD)
+                        else:
+                            deviation = -float(nD)
+                    else:
+                        deviation = None
+
+                # Initialize list for this deviation
+                if deviation is not None:
+                    if deviation not in events_by_dev:
+                        events_by_dev[deviation] = []
+                
+                    events_by_dev[deviation].append(event)
+
+        # Sort deviations from negative to positive
+        # Important to ensure consistent order in the conditions list
+        sorted_deviations = sorted(events_by_dev.keys())
+
+        # Create conditions (a list of strings)
+        conditions = [str(i) for i in sorted_deviations]
+
+        # Extract onsets and durations in the same order as conditions
+        onsets = []
+        durations = []
+        for dev in sorted_deviations:
+            onsets.append([e['onset'] for e in events_by_dev[dev]])
+            durations.append([e['duration'] for e in events_by_dev[dev]])
+
+        design_info = Bunch(
+            conditions=conditions,
+            onsets=onsets,
+            durations=durations
+        )
+        return design_info
+    
+    # Create timing deviancy Bunch 
+    time_bunch = timDev(time_log, time_pool)
+
+    # Get info on stimuli onset, duration and trial type from events.tsv file
+    # Initialize a dictionary to store that info per timing deviation
+    events_by_freq = {'0': [], '1': []}
+
+    with open(time_log, 'r') as logfile:
+        
+        next(logfile)  # Skip header row
+
+        # Auto-detect delimiter (should be tab)
+        sample  = logfile.read(3000); logfile.seek(0)
+        dialect = csv.Sniffer().sniff(sample, delimiters=[";", "\t", ","])
+        
+        # Read the logfile
+        logTsv  = csv.reader(logfile, dialect)
+        next(logTsv)  # Skip header again
+
+        for line in logTsv:
+
+            # Get events
+            onset = float(line[0])
+            duration = float(line[1])
+            event = {'onset': onset, 'duration': duration}
+            
+            # Get trial type
+            frequency_str = line[2]
+
+            # Is it a frequency deviant or not?
+            if "type-fStd" in frequency_str:
+                frequency = "0"
+            elif "type-fDev" in frequency_str:
+                frequency = "1"
+            else:
+                frequency = False
+
+            # Initialize a list for this frequency and append
+            if frequency:
+                events_by_freq[frequency].append(event)
+
+    # Create conditions
+    conditions = [i for i in events_by_freq.keys()]
+
+    # Extract onsets and durations in the same order as conditions
+    onsets = []
+    durations = []
+    for freq in events_by_freq.keys():
+        onsets.append([e['onset'] for e in events_by_freq[freq]])
+        durations.append([e['duration'] for e in events_by_freq[freq]])
+
+    freq_bunch = Bunch(
+        conditions=conditions,
+        onsets=onsets,
+        durations=durations
+    )
+
+    # Join the timing and frequency deviancy Bunch objects
+    timfreq_bunch = [Bunch(
+        conditions=time_bunch.conditions + freq_bunch.conditions,
+        onsets=time_bunch.onsets + freq_bunch.onsets,
+        durations=time_bunch.durations + freq_bunch.durations
+    )]
+    return timfreq_bunch

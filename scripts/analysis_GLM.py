@@ -1,8 +1,7 @@
 #! /usr/bin/env python
-# Time-stamp: <2026-05-26 m.utrosa@bcbl.eu>
+# Time-stamp: <2026-06-04 m.utrosa@bcbl.eu>
 '''
 Fixed effects fMRI model fitting
-Concatenating time courses at corresponding locations across subjects
 
 Fixed-Effects Analysis
 https://www.brainvoyager.com/bv/doc/UsersGuide/StatisticalAnalysis/FixedEffectsRandomEffectsMixedEffects.html
@@ -18,53 +17,61 @@ GLM in SPM
 https://nipype.readthedocs.io/en/latest/users/examples/fmri_nipy_glm.html
 '''
 
-# TODO: check T1 vs MNI space inputs ... could be that now it's just T1 space inputs ...
-
 # Import python packages
 from pathlib import Path
 import pandas as pd
 import numpy as np
 
 # Import nipype stuff
-from nipype.interfaces.nipy.model import FitGLM
-from nipype.interfaces.freesurfer import MRIConvert
 from nipype.algorithms.misc import Gunzip
 from nipype.interfaces.io import DataSink
-from nipype import Workflow, Function
+from nipype import Workflow, Function, IdentityInterface
 import nipype.interfaces.spm as spm  # spm
-import nipype.interfaces.matlab as mlab  # how to run matlab
 import nipype.pipeline.engine as pe  # pypeline engine
-# import nipype.algorithms.rapidart as ra  # artifact detection
 import nipype.algorithms.modelgen as model  # model specification
-from nipype.algorithms.rapidart import ArtifactDetect # artifact detection
+# from nipype.algorithms.rapidart import ArtifactDetect # artifact detection
 
 # Import custom-made functions (scripts)
 import grabber
 from objects import grab_objects
-from designs import timDev
-
-# Set the way matlab should be called
-mlab.MatlabCommand.set_default_matlab_cmd("matlab -nodesktop -nosplash")
+from designs import timfreqDev
 
 # Set up project root, needed paths and folders
 homePath = Path('/home/mutrosa/mutrosa/Documents/devLoc')
-mriPath  = homePath / "data_MRI" / "derivatives" / "NORDIC-False" # path to preproc outputs
+mriPath  = homePath / "data_MRI" / "derivatives" / "NORDIC-True" # path to preproc outputs
 work_dir = homePath / "results" / "work" # for intermediate outputs
 out_dir  = homePath / "results"
-MNI      = homePath / "templates" / "tpl-MNI152NLin2009cAsym_res-01_T1w.nii.gz" # the same as in fMRIprep !
 
 # Set up experimental procedure info
-subjects = [5]
-sessions = [2]
-runs     = ['BLOCK1', 'BLOCK2', 'BLOCK3', 'BLOCK4']
+subjects =[5]
+sessions = [2, 3, 4, 5, 6, 7]
+acquisitions = ['BLOCK1', 'BLOCK2', 'BLOCK3', 'BLOCK4']
 anat_ses = 2
-pooling = False # If True absolute timing deviancy regressors, if False nominal.
+space = "T1w"
+pooling = True # If True absolute timing deviancy regressors, if False nominal.
+hrf_dervs = [0, 0]
+volterra = False
 
 # Experimental design and MRI info
 task = "timDev"
 
 # Model parameters
-smoothing  = None # Set the Gaussian filter width in mm, default is None
+smoothing  = 2 # Set the Gaussian filter width in mm. Default None (no smoothing).
+
+# -------------------------------------------------------------------------------------------------
+# 01. Specify helper nodes
+# -------------------------------------------------------------------------------------------------
+# Infosource: set up a function-free node to iterate over the list of acquisition names.
+# The Identity Interface allows to create Nodes that only work with strings (parameters)!
+infosource = pe.Node(
+    IdentityInterface(fields = ['subID', 'sesID', 'acqID']),
+	name = "infosource"
+)
+infosource.iterables = [
+    ('subID', subjects),
+	('sesID', sessions),
+	('acqID', acquisitions)
+]
 
 # T1w Datasink: create output folder for important outputs in T1w space
 datasink_T1w = pe.Node(
@@ -75,46 +82,57 @@ datasink_T1w = pe.Node(
     name = "datasink_T1w"
 )
 
-# MNI Datasink: create output folder for important outputs in MNI space
-datasink_MNI = pe.Node(
-    DataSink(base_directory = str(work_dir),
-                             container = str(out_dir)),
-    name = "datasink_MNI"
-)
+# Output substitutions: correct all Datasink output folder structures
+substitutions = []
+subjFolders = [('_acqID_%s_sesID_%s_subID_%s' % (acq, ses, sub),
+				'sub-0%s/ses-0%s/acq-%s' % (sub, ses, acq))
+               for acq in acquisitions
+               for ses in sessions
+               for sub in subjects]
+substitutions.extend(subjFolders)
+datasink_T1w.inputs.substitutions = substitutions
+datasink_T1w.inputs.substitutions += [('beta_', f'beta_space-{space}_'),]
 
 # Define a Node that extracts filepaths for all files required for the analysis
 infohandle = pe.Node(
     Function(
-        input_names  = ["subID", "sessions", "anatID", "runs", "homePath", "mriPath"],
+        input_names  = [
+            "subID",
+            "sesID", 
+            "anatID", 
+            "homePath", 
+            "mriPath",
+            "space",
+            "acqID", 
+            "runs"
+        ],
         output_names = [
-    "log_paths",
-    "bold_paths", 
-    "mask_paths", 
-    "conf_paths",
-    "out_paths", 
-    "T1w_paths", 
-    "T1w_toMNI_paths",
-    "orig_to_boldref_paths",
-    "boldref_to_T1w_paths", 
-    "TRs"
-    ],
+            "log_path",
+            "bold_path", 
+            "mask_path", 
+            "conf_path",
+            "out_path", 
+            "T1w_path", 
+            "T1w_to_MNI_path",
+            "orig_to_boldref_path",
+            "boldref_to_T1w_path", 
+            "TR"
+        ],
         function = grab_objects),
 name = "infohandle"
 )
-
-infohandle.inputs.subID    = subjects[0]
-infohandle.inputs.sessions = sessions
 infohandle.inputs.anatID   = anat_ses
-infohandle.inputs.runs     = runs
 infohandle.inputs.homePath = str(homePath)
 infohandle.inputs.mriPath  = str(mriPath)
+infohandle.inputs.space    = space
+infohandle.inputs.runs     = False
 
 # -------------------------------------------------------------------------------------------------
-# 00. Additional preprocessing steps: smoothing (optional) and outlier detection
+# 02. Additional preprocessing node: smoothing and outlier detection
 # -------------------------------------------------------------------------------------------------
 if smoothing:
     smooth = pe.Node(interface=spm.Smooth(), name="smooth")
-    smooth.inputs.fwhm = smoothing
+    smooth.inputs.fwhm = smoothing # TODO: Check whether this has to be a list?  
 
 # Using intensity and motion parameters to infer parameters
 # CHECK: which threshod to use? is this valid given that fMRIprep realigns data (does it?)?
@@ -139,26 +157,26 @@ if smoothing:
 #     ]),
 
 # -------------------------------------------------------------------------------------------------
-# 01. Specify 1st-level model parameters
+# 03. Specify 1st-level model parameters
 # -------------------------------------------------------------------------------------------------
 # Get the information about the experimental paradigm to create an SPM design matrix.
 # Construct a list of objects (each object should contain data for all runs of that session)
-# Create a Bunch object by parsing all event files of the
+# Create a Bunch object by parsing all event files: timDev & freqDev are separate Bunch objects.
 design_bunch = pe.Node(
     Function(
-        input_names = ["logfilepaths", "pooling"],
-        output_names = ["design_info_list"],
-        function = timDev
+        input_names = ["time_log", "time_pool"],
+        output_names = ["timfreq_bunch"],
+        function = timfreqDev
     ),
     name = "design_bunch"
 )
-design_bunch.inputs.pooling = pooling
+design_bunch.inputs.time_pool = pooling
 
 # Unzip functional images (preprocessed BOLD)
 unzip = pe.MapNode(
     Gunzip(),
     name = 'unzip',
-    iterfield=['in_file']
+    iterfield = ["in_file"] 
 )
 
 # --------- A. Generate design information - Specify the SPM model
@@ -192,14 +210,19 @@ estimator = pe.Node(
 # -------------------------------------------------------------------------------------------------
 timDev22 = Workflow(name = "level1")
 timDev22.base_dir = str(work_dir)
-
+timDev22.connect([(infosource, infohandle, [
+    ("subID", "subID"),
+	("sesID", "sesID"),
+	("acqID", "acqID")
+    ])
+])
 timDev22.connect([
 
     # Generate lists for concatenation
-    (infohandle, design_bunch, [("log_paths", "logfilepaths")]),
+    (infohandle, design_bunch, [("log_path", "time_log")]),
 
     # Generate lists of preprocesed data
-    (infohandle, unzip, [("bold_paths", "in_file")])
+    (infohandle, unzip, [("bold_path", "in_file")])
 ])
 
 if smoothing is not None:
@@ -215,22 +238,27 @@ else:
 timDev22.connect([
 
     # Model specs
-    (design_bunch, modeler, [("design_info_list", "subject_info")]),
     (infohandle, modeler, [
-            ("out_paths", "outlier_files"),
-            ("conf_paths", "realignment_parameters"),
-            ("TRs", "time_repetition") # CHECK: TR is a single float
+            ("out_path", "outlier_files"),
+            ("conf_path", "realignment_parameters"),
+            ("TR", "time_repetition")
     ]),
+    (design_bunch, modeler, [("timfreq_bunch", "subject_info")])
+])
+
+timDev22.connect([
     (modeler, designer, [("session_info", "session_info")]),
-    (infohandle, designer, [("TRs", "interscan_interval")]),
+    (infohandle, designer, [("TR", "interscan_interval")])
+])
+
+timDev22.connect([
     (designer, estimator, [("spm_mat_file", "spm_mat_file")]),
     (estimator, datasink_T1w, [
         ('spm_mat_file', '1stLevel.@spm_mat'),
-        ('beta_images', '1stLevel.@beta_images'),
-        ('residual_image', '1stLevel.@residuals')
+        ('residual_image', '1stLevel.@residuals'),
+        ('beta_images', '1stLevel.@beta_images')
     ]),
 ])
-
 
 # -------------------------------------------------------------------------------------------------
 # 03. Visualize the Workflow
