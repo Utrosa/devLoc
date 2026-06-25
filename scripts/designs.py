@@ -72,7 +72,7 @@ def timDev(logfilepaths, pooling):
 
     Parameters:
         logfilepath (str): Path to the log file.
-        pooling: If True, timing deviants are pooled as abolute values. 
+        pooling: If True, timing deviants are pooled as asbolute values. 
                  If False, separate conditions for negative and positive values.
 
     Returns:
@@ -125,13 +125,13 @@ def timDev(logfilepaths, pooling):
                     # Figure out the direction: positive or negative delta?
                     if "p" in delta:
                         pD = delta.strip("p")
-                        deviation = float(pD)
+                        deviation = int(pD)
                     elif "n" in delta:
                         nD = delta.strip("n")
                         if pooling:
-                            deviation = float(nD)
+                            deviation = int(nD)
                         else:
-                            deviation = -float(nD)
+                            deviation = -int(nD)
                     else:
                         deviation = None
 
@@ -242,23 +242,26 @@ def freqDev(logfilepaths):
     
     return design_info_list
 
-def timfreqDev(time_log, time_pool):
+def timfreqDev(time_log, time_groups, time_pool, time_binary):
     """
-    Joins the events of timDev and freqDev tasks from timDev logpath. 
+    Joins the events of timDev and freqDev tasks from timDev log file. 
 
     Parameters:
-        time_log (str): Path to the log files of timDev task.
-        time_pool: If True, timing deviants are pooled as abolute values. 
-                   If False, separate conditions for negative and positive values.
-
+        time_log:    path to the log files for timDev task.
+        time_groups: dict/bool, a sorted dictionary of upper bounds (keys) and names for the timing 
+                     deviants groups they create (values). Default to False (no grouping).
+        time_pool:   If True, timing deviants are pooled as abolute values. 
+                     If False, separate conditions for negative and positive values.
+        time_binary: If True, all timing deviants are grouped into a single condition,
+                     ignoring magnitude and direction. Defaults to False.
     Returns:
-        list: A list of Bunch objects containing conditions, onsets, and durations.
+        list: A Bunch object containing conditions, onsets, and durations.
     """
-    import csv
+    import csv, bisect
     from nipype.interfaces.base import Bunch
     
     # Nest the timing deviancy function
-    def timDev(time_log, pooling):
+    def timDevCat(time_log, groups, pooling, binary):
         """
         Parse logfiles into design matrix for the 'timDev' paradigm. 
         Timing deviancy conditions can be taken as absolute or relative values.
@@ -266,25 +269,33 @@ def timfreqDev(time_log, time_pool):
 
         Parameters:
             time_log (str): Path to the log file.
+            groups: A sorted dictionary of upper bounds (keys) and names for the timing 
+                    deviants groups they create (values). Defaults to False (no grouping).
             pooling: If True, timing deviants are pooled as abolute values. 
                      If False, separate conditions for negative and positive values.
+            binary: If True, all timing deviants are grouped into a single condition,
+                    ignoring magnitude and direction. Defaults to False.
 
         Returns:
             list: A Bunch object containing conditions, onsets, and durations.
         """
-        import csv
-        from nipype.interfaces.base import Bunch
-
-        # Get info on stimuli onset, duration and trial type from events.tsv file
         # Initialize a dictionary to store that info per timing deviation
         events_by_dev = {}
 
+        # Get group values and names, if grouping applies to timing deviants 
+        if groups:
+            group_values = list(groups.keys())
+            group_names = list(groups.values())
+
+        # Read info on stimuli onset, duration and trial type from events.tsv file
         with open(time_log, 'r') as logfile:
-            
-            next(logfile)  # Skip header row
+
+            # Skip header row
+            next(logfile)
 
             # Auto-detect delimiter (should be tab)
-            sample  = logfile.read(3000); logfile.seek(0)
+            sample = logfile.read(3000)
+            logfile.seek(0)
             dialect = csv.Sniffer().sniff(sample, delimiters=[";", "\t", ","])
             
             # Read the logfile
@@ -293,7 +304,7 @@ def timfreqDev(time_log, time_pool):
 
             for line in logTsv:
 
-                # Get events
+                # Get event's onset and duration
                 onset = float(line[0])
                 duration = float(line[1])
                 event = {'onset': onset, 'duration': duration}
@@ -306,29 +317,49 @@ def timfreqDev(time_log, time_pool):
 
                 # Does the current row correspond to a time deviant tone?
                 if "delta" in deviation_str:
-
-                    # Strip to get the delta
-                    delta_str = deviation_str.split("delta-")[1]
-                    delta = delta_str.split("ms")[0]
-                    
-                    # Figure out the direction: positive or negative delta?
-                    if "p" in delta:
-                        pD = delta.strip("p")
-                        deviation = float(pD)
-                    elif "n" in delta:
-                        nD = delta.strip("n")
-                        if pooling:
-                            deviation = float(nD)
-                        else:
-                            deviation = -float(nD)
+                    if binary:
+                        deviation = "timDev"
                     else:
-                        deviation = None
+                        # Strip to get the delta
+                        delta_str = deviation_str.split("delta-")[1]
+                        delta = delta_str.split("ms")[0]
+                        
+                        # Figure out the direction: positive or negative delta?
+                        # Positive deltas
+                        if "p" in delta:
+                            pD = delta.strip("p")
+
+                            if groups:
+                                # Binary search for the group
+                                idx = bisect.bisect_right(group_values, int(pD))
+                                deviation = group_names[idx]
+                            else:
+                                deviation = int(pD)
+                        
+                        # Negative deltas                   
+                        elif "n" in delta:
+                            nD = delta.strip("n")
+
+                            if pooling:
+                                if groups:
+                                    # Binary search for the group
+                                    idx = bisect.bisect_right(group_values, int(nD))
+                                    deviation = group_names[idx]
+                                else:
+                                    deviation = int(nD)
+                            else:
+                                if groups:
+                                    idx = bisect.bisect_right(group_values, -int(nD))
+                                    deviation = group_names[idx]
+                                else:
+                                    deviation = -int(nD)
+                else:
+                    deviation = None
 
                 # Initialize list for this deviation
                 if deviation is not None:
                     if deviation not in events_by_dev:
                         events_by_dev[deviation] = []
-                
                     events_by_dev[deviation].append(event)
 
         # Sort deviations from negative to positive
@@ -353,11 +384,11 @@ def timfreqDev(time_log, time_pool):
         return design_info
     
     # Create timing deviancy Bunch 
-    time_bunch = timDev(time_log, time_pool)
+    time_bunch = timDevCat(time_log, time_groups, time_pool, time_binary)
 
     # Get info on stimuli onset, duration and trial type from events.tsv file
     # Initialize a dictionary to store that info per timing deviation
-    events_by_freq = {'0': [], '1': []}
+    events_by_freq = {'freqDev': []}
 
     with open(time_log, 'r') as logfile:
         
@@ -382,14 +413,12 @@ def timfreqDev(time_log, time_pool):
             frequency_str = line[2]
 
             # Is it a frequency deviant or not?
-            if "type-fStd" in frequency_str:
-                frequency = "0"
-            elif "type-fDev" in frequency_str:
-                frequency = "1"
+            if "type-fDev" in frequency_str:
+                frequency = "freqDev"
             else:
                 frequency = False
 
-            # Initialize a list for this frequency and append
+            # Add only frequency deviants as events
             if frequency:
                 events_by_freq[frequency].append(event)
 
