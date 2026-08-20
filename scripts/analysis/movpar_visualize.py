@@ -39,7 +39,7 @@ keys = [
 
 # 00. Files and paths
 # Path to the project directory
-homePath = Path('/home/mutrosa/mutrosa/Documents/devLoc')
+homePath = Path('/home/mutrosa/mutrosa/Documents/projects/devLoc')
 
 # Get info about the filtered rigid body movements: trasn & rot
 mriFold = homePath / "data_MRI" / 'derivatives' / f"NORDIC-{denosing}" / "derivatives"

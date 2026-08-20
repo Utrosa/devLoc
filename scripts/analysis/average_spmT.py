@@ -29,7 +29,7 @@ acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"]
 space = "T1w"
 
 # Project directories
-homePath   = Path("/home/mutrosa/mutrosa/Documents/devLoc")
+homePath   = Path("/home/mutrosa/mutrosa/Documents/projects/devLoc")
 atlas_path = homePath / "templates" / f"sub-invivo_resampled_to-{space}_sub-{subID:02d}_ses-{anatID:02d}.nii.gz"
 out_dir    = homePath / "results" / "visualization"
 out_dir.mkdir(exist_ok=True)

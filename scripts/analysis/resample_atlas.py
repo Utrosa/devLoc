@@ -33,7 +33,7 @@ acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNCLOC"
 task = "timDev" # "localizer"
 
 # ------- Specify the project directories
-homePath = Path("/home/mutrosa/mutrosa/Documents/devLoc")
+homePath = Path("/home/mutrosa/mutrosa/Documents/projects/devLoc")
 mriPath  = homePath / "data_MRI" / "derivatives" / f"NORDIC-{denoising}" / "derivatives" / f"sub-{subID:02d}"
 atlasPath = homePath / "templates"
 

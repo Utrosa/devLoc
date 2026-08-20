@@ -47,7 +47,7 @@ plot_rois      = ["IC-L", "IC-R", "MGB-L", "MGB-R", "aHG-L", "aHG-R"]
 # BELOW DO NOT MODIFY
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # *~*~*~*~ Project directories *~*~*~*~
-homePath  = Path("/home/mutrosa/mutrosa/Documents/devLoc")
+homePath  = Path("/home/mutrosa/mutrosa/Documents/projects/devLoc")
 resPath   = homePath / "results"
 dataPath  = resPath / jobName / f"NORDIC-{denoising}" / "1stLevel"
 outPath   = resPath / jobName / f"NORDIC-{denoising}" / "2stLevel"

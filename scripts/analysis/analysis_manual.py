@@ -29,7 +29,7 @@ anat_list = [ses_list[0]]
 acqID_list = ["FUNCLOC"]
 
 # Set up project root and define needed folders
-homePath   = Path('/home/mutrosa/mutrosa/Documents/devLoc')
+homePath   = Path('/home/mutrosa/mutrosa/Documents/projects/devLoc')
 tmp_dir    = homePath / "scripts" / "analysis" / "tmp"
 out_dir    = homePath / "results"
 hrf_dervs  = [0, 0] # using the canonical hrf (without derivatives)

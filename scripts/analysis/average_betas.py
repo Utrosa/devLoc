@@ -60,7 +60,7 @@ space  = "T1w"
 plot_rois = ["IC-L", "IC-R", "MGB-L", "MGB-R", "aHG-L", "aHG-R"] 
 
 # Project directories
-homePath   = Path("/home/mutrosa/mutrosa/Documents/devLoc")
+homePath   = Path("/home/mutrosa/mutrosa/Documents/projects/devLoc")
 resPath    = homePath / "results"
 dataPath   = resPath / jobName / f"NORDIC-{denoising}" / "1stLevel"
 out_dir    = resPath / jobName / f"NORDIC-{denoising}" / "1stLevel" / "visualization"

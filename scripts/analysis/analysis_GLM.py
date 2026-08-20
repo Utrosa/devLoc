@@ -23,7 +23,7 @@ groups  = False  # If False, takes absolute or nominal timing deviants (11 vs 22
 sessions = [2]   # 3, 4, 5, 6, 7
 acquisitions = ['BLOCK1'] # 'BLOCK2', 'BLOCK3', 'BLOCK4'
 
-homePath = Path('/home/mutrosa/mutrosa/Documents/devLoc')
+homePath = Path('/home/mutrosa/mutrosa/Documents/projects/devLoc')
 work_dir = homePath / "results" / "test" / f"work-{jobName}" / f"NORDIC-{denoising}" # for intermediate outputs
 out_dir  = homePath / "results" / "test" / jobName / f"NORDIC-{denoising}"
 # ------------------------------------------------------------------------------------------------------------------
