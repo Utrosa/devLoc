@@ -1,5 +1,13 @@
 # Untracked folders
+data_logs/
+data_MRI/
+data_physio/
 GLM_templates/
+my_images/
+preproc_logs/
+results/
+templates/
+tests/
 performance_plots/
 
 # Untracked files

@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <2025-15-07 m.utrosa@bcbl.eu>
+# Time-stamp: <2026-28-05 m.utrosa@bcbl.eu>
 
 import bids
 
@@ -62,6 +62,8 @@ def grab_BIDS_object(filepath, layout, grabconf):
 		filters['task'] = grabconf['task']
 	if grabconf.get('acquisition'):
 		filters['acquisition'] = grabconf['acquisition']
+	if grabconf.get('run'):
+		filters['run'] = grabconf['run']
 	if grabconf.get('direction'):
 		filters['direction'] = grabconf['direction']
 	if grabconf.get('inv'):

@@ -1,0 +1,404 @@
+{
+    "descriptions": [
+
+        {
+            "id": "id_task-timDev_acq-BLOCK1",
+            "datatype": "func",
+            "suffix": "bold",
+            "custom_entities": "task-timDev_acq-BLOCK1",
+            "criteria": {
+                "SeriesDescription": "Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 5
+            },
+            "sidecar_changes": {
+                "TaskName": "timDev",
+                "PulseSequenceName": "epfid2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+
+            }
+        },
+
+        {
+            "datatype": "func",
+            "suffix": "bold",
+            "custom_entities": "task-timDev_acq-BLOCK1_part-phase",
+            "criteria": {
+                "SeriesDescription": "Dresden_1.8mm_SMS1_TR1500_wFatSat_Pha",
+		        "SeriesNumber": 6
+            },
+            "sidecar_changes": {
+                "Units": "rad",
+                "TaskName": "timDev",
+                "PulseSequenceName": "epfid2d1_86",
+                "InstitutionalDepartmentName": "BCBL",
+                "IntendedFor": "id_task-timDev_acq-BLOCK1"
+            }
+        },
+
+        {
+            "datatype": "fmap",
+            "suffix": "epi",
+            "custom_entities": "acq-BLOCK1_dir-RL",
+            "criteria": {
+                "SeriesDescription": "SE_fmap_Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 7
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_task-timDev_acq-BLOCK1",
+                "PulseSequenceName": "epse2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+            }
+        },
+
+        {
+            "datatype": "fmap",
+            "suffix": "epi",
+            "custom_entities": "acq-BLOCK1_dir-LR",
+            "criteria": {
+                "SeriesDescription": "SE_ifmap_Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 8
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_task-timDev_acq-BLOCK1",
+                "PulseSequenceName": "epse2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+            }
+        },
+
+        {
+            "datatype": "func",
+            "suffix": "sbref",
+            "custom_entities": "task-timDev_acq-BLOCK1",
+            "criteria": {
+                "SeriesDescription": "FH_Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 9
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_task-timDev_acq-BLOCK1",
+                "TaskName": "timDev",
+                "PulseSequenceName": "epfid2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+            }
+        },
+
+        {
+            "id": "id_task-timDev_acq-BLOCK2",
+            "datatype": "func",
+            "suffix": "bold",
+            "custom_entities": "task-timDev_acq-BLOCK2",
+            "criteria": {
+                "SeriesDescription": "Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 10
+            },
+            "sidecar_changes": {
+                "TaskName": "timDev",
+                "PulseSequenceName": "epfid2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+
+            }
+        },
+
+        {
+            "datatype": "func",
+            "suffix": "bold",
+            "custom_entities": "task-timDev_acq-BLOCK2_part-phase",
+            "criteria": {
+                "SeriesDescription": "Dresden_1.8mm_SMS1_TR1500_wFatSat_Pha",
+                "SeriesNumber": 11
+            },
+            "sidecar_changes": {
+                "Units": "rad",
+                "TaskName": "timDev",
+                "PulseSequenceName": "epfid2d1_86",
+                "InstitutionalDepartmentName": "BCBL",
+                "IntendedFor": "id_task-timDev_acq-BLOCK2"
+            }
+        },
+
+        {
+            "datatype": "fmap",
+            "suffix": "epi",
+            "custom_entities": "acq-BLOCK2_dir-RL",
+            "criteria": {
+                "SeriesDescription": "SE_fmap_Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 12
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_task-timDev_acq-BLOCK2",
+                "PulseSequenceName": "epse2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+            }
+        },
+
+        {
+            "datatype": "fmap",
+            "suffix": "epi",
+            "custom_entities": "acq-BLOCK2_dir-LR",
+            "criteria": {
+                "SeriesDescription": "SE_ifmap_Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 13
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_task-timDev_acq-BLOCK2",
+                "PulseSequenceName": "epse2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+            }
+        },
+
+        {
+            "datatype": "func",
+            "suffix": "sbref",
+            "custom_entities": "task-timDev_acq-BLOCK2",
+            "criteria": {
+                "SeriesDescription": "FH_Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 14
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_task-timDev_acq-BLOCK2",
+                "TaskName": "timDev",
+                "PulseSequenceName": "epfid2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+            }
+        },
+
+        {
+            "id": "id_task-timDev_acq-BLOCK3",
+            "datatype": "func",
+            "suffix": "bold",
+            "custom_entities": "task-timDev_acq-BLOCK3",
+            "criteria": {
+                "SeriesDescription": "Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 15
+            },
+            "sidecar_changes": {
+                "TaskName": "timDev",
+                "PulseSequenceName": "epfid2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+
+            }
+        },
+
+        {
+            "datatype": "func",
+            "suffix": "bold",
+            "custom_entities": "task-timDev_acq-BLOCK3_part-phase",
+            "criteria": {
+                "SeriesDescription": "Dresden_1.8mm_SMS1_TR1500_wFatSat_Pha",
+                "SeriesNumber": 16
+            },
+            "sidecar_changes": {
+                "Units": "rad",
+                "TaskName": "timDev",
+                "PulseSequenceName": "epfid2d1_86",
+                "InstitutionalDepartmentName": "BCBL",
+                "IntendedFor": "id_task-timDev_acq-BLOCK3"
+            }
+        },
+
+        {
+            "datatype": "fmap",
+            "suffix": "epi",
+            "custom_entities": "acq-BLOCK3_dir-RL",
+            "criteria": {
+                "SeriesDescription": "SE_fmap_Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 17
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_task-timDev_acq-BLOCK3",
+                "PulseSequenceName": "epse2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+            }
+        },
+
+        {
+            "datatype": "fmap",
+            "suffix": "epi",
+            "custom_entities": "acq-BLOCK3_dir-LR",
+            "criteria": {
+                "SeriesDescription": "SE_ifmap_Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 18
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_task-timDev_acq-BLOCK3",
+                "PulseSequenceName": "epse2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+            }
+        },
+
+        {
+            "datatype": "func",
+            "suffix": "sbref",
+            "custom_entities": "task-timDev_acq-BLOCK3",
+            "criteria": {
+                "SeriesDescription": "FH_Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 19
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_task-timDev_acq-BLOCK3",
+                "TaskName": "timDev",
+                "PulseSequenceName": "epfid2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+            }
+        },
+
+        {
+            "id": "id_task-timDev_acq-BLOCK4",
+            "datatype": "func",
+            "suffix": "bold",
+            "custom_entities": "task-timDev_acq-BLOCK4",
+            "criteria": {
+                "SeriesDescription": "Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 20
+            },
+            "sidecar_changes": {
+                "TaskName": "timDev",
+                "PulseSequenceName": "epfid2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+
+            }
+        },
+
+        {
+            "datatype": "func",
+            "suffix": "bold",
+            "custom_entities": "task-timDev_acq-BLOCK4_part-phase",
+            "criteria": {
+                "SeriesDescription": "Dresden_1.8mm_SMS1_TR1500_wFatSat_Pha",
+                "SeriesNumber": 21
+            },
+            "sidecar_changes": {
+                "Units": "rad",
+                "TaskName": "timDev",
+                "PulseSequenceName": "epfid2d1_86",
+                "InstitutionalDepartmentName": "BCBL",
+                "IntendedFor": "id_task-timDev_acq-BLOCK4"
+            }
+        },
+
+        {
+            "datatype": "fmap",
+            "suffix": "epi",
+            "custom_entities": "acq-BLOCK4_dir-RL",
+            "criteria": {
+                "SeriesDescription": "SE_fmap_Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 22
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_task-timDev_acq-BLOCK4",
+                "PulseSequenceName": "epse2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+            }
+        },
+
+        {
+            "datatype": "fmap",
+            "suffix": "epi",
+            "custom_entities": "acq-BLOCK4_dir-LR",
+            "criteria": {
+                "SeriesDescription": "SE_ifmap_Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 23
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_task-timDev_acq-BLOCK4",
+                "PulseSequenceName": "epse2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+            }
+        },
+
+        {
+            "datatype": "func",
+            "suffix": "sbref",
+            "custom_entities": "task-timDev_acq-BLOCK4",
+            "criteria": {
+                "SeriesDescription": "FH_Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 24
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_task-timDev_acq-BLOCK4",
+                "TaskName": "timDev",
+                "PulseSequenceName": "epfid2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+            }
+        },
+
+        {
+            "id": "id_task-localizer_acq-FUNCLOC",
+            "datatype": "func",
+            "suffix": "bold",
+            "custom_entities": "task-localizer_acq-FUNCLOC",
+            "criteria": {
+                "SeriesDescription": "Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 25
+            },
+            "sidecar_changes": {
+                "TaskName": "localizer",
+                "PulseSequenceName": "epfid2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+
+            }
+        },
+
+        {
+            "datatype": "func",
+            "suffix": "bold",
+            "custom_entities": "task-localizer_acq-FUNCLOC_part-phase",
+            "criteria": {
+                "SeriesDescription": "Dresden_1.8mm_SMS1_TR1500_wFatSat_Pha",
+                "SeriesNumber": 26
+            },
+            "sidecar_changes": {
+                "Units": "rad",
+                "TaskName": "localizer",
+                "PulseSequenceName": "epfid2d1_86",
+                "InstitutionalDepartmentName": "BCBL",
+                "IntendedFor": "id_task-localizer_acq-FUNCLOC"
+            }
+        },
+
+        {
+            "datatype": "fmap",
+            "suffix": "epi",
+            "custom_entities": "acq-FUNCLOC_dir-RL",
+            "criteria": {
+                "SeriesDescription": "SE_fmap_Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 27
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_task-localizer_acq-FUNCLOC",
+                "PulseSequenceName": "epse2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+            }
+        },
+
+        {
+            "datatype": "fmap",
+            "suffix": "epi",
+            "custom_entities": "acq-FUNCLOC_dir-LR",
+            "criteria": {
+                "SeriesDescription": "SE_ifmap_Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 28
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_task-localizer_acq-FUNCLOC",
+                "PulseSequenceName": "epse2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+            }
+        },
+
+        {
+            "datatype": "func",
+            "suffix": "sbref",
+            "custom_entities": "task-localizer_acq-FUNCLOC",
+            "criteria": {
+                "SeriesDescription": "FH_Dresden_1.8mm_SMS1_TR1500_wFatSat",
+                "SeriesNumber": 29
+            },
+            "sidecar_changes": {
+                "IntendedFor": "id_task-localizer_acq-FUNCLOC",
+                "TaskName": "localizer",
+                "PulseSequenceName": "epfid2d1_86",
+                "InstitutionalDepartmentName": "BCBL"
+            }
+        }
+    ]    
+}
