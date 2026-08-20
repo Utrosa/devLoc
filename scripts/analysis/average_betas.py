@@ -57,7 +57,7 @@ import roisExtVis as rem
 subID  = 5
 anatID = 2
 space  = "T1w"
-plot_rois = ["IC-L", "IC-R", "MGB-L", "MGB-R", "aHGL", "aHGR"] 
+plot_rois = ["IC-L", "IC-R", "MGB-L", "MGB-R", "aHG-L", "aHG-R"] 
 
 # Project directories
 homePath   = Path("/home/mutrosa/mutrosa/Documents/devLoc")
@@ -100,8 +100,8 @@ rois_subcortical = {
 # 11136 PT-L   G_temp_sup-Plan_tempo  Planum temporale of the superior temporal gyrus (~A2)
 # 12136 PT-R
 rois_cortical = {
-	'aHGL' : {'label': 11133},
-	'aHGR' : {'label': 12133}
+	'aHG-L' : {'label': 11133},
+	'aHG-R' : {'label': 12133}
 	}
 
 # All rois combined

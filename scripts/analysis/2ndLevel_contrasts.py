@@ -41,7 +41,7 @@ save_roi       = False # Applies to extracted ROI arrays
 save_fig       = True
 save_average   = False # Applies to the summed contrast arrays
 average_voxels = True  # Do we average voxels per ROI or not? 
-plot_rois      = ["IC-L", "IC-R", "MGB-L", "MGB-R", "aHGL", "aHGR"]
+plot_rois      = ["IC-L", "IC-R", "MGB-L", "MGB-R", "aHG-L", "aHG-R"]
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # BELOW DO NOT MODIFY
@@ -88,8 +88,8 @@ rois_subcortical = {
 # 11133 aHG-L  G_temp_sup-G_T_transv  Anterior transverse temporal gyrus (~A1)
 # 12133 aHG-R 
 rois_cortical = {
-	'aHGL' : {'label': 11133},
-	'aHGR' : {'label': 12133}
+	'aHG-L' : {'label': 11133},
+	'aHG-R' : {'label': 12133}
 	}
 
 # All rois combined
