@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <24-06-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <21-08-2026 m.utrosa@bcbl.eu>
 """
 Extract ROI arrays from beta images and plot a single violin 
 plot per ROI, where each beta is an average from all runs for that
@@ -29,7 +29,7 @@ blocks = "1234" # appears in the plots' filename
 save_fig       = True  # applies to figures with statistical results 
 save_roi       = False # Applies to extracted ROI arrays
 save_average   = False # Applies to the summed beta arrays
-average_voxels = True
+average_voxels = True  # TODO: Make it work for False 
 remove_empty   = False # Remove or not empty arrays (e.g.: If we do not average across voxels, 
 					   # do we, when averaging across runs, include voxels that have zero 
 					   # beta values or not?)
@@ -57,14 +57,14 @@ import roisExtVis as rem
 subID  = 5
 anatID = 2
 space  = "T1w"
-plot_rois = ["IC-L", "IC-R", "MGB-L", "MGB-R", "aHG-L", "aHG-R"] 
+plot_rois = ["IC-L", "IC-R", "MGB-L", "MGB-R", "A1-L", "A1-R"] 
 
 # Project directories
 homePath   = Path("/home/mutrosa/mutrosa/Documents/projects/devLoc")
-resPath    = homePath / "results"
-dataPath   = resPath / jobName / f"NORDIC-{denoising}" / "1stLevel"
-out_dir    = resPath / jobName / f"NORDIC-{denoising}" / "1stLevel" / "visualization"
-# out_dir    = resPath / "visualization" / f"NORDIC-{denoising}" / jobName
+resDir     = homePath / "results"
+outDir     = homePath / "tests"
+dataPath   = resDir / jobName / f"NORDIC-{denoising}" / "1stLevel"
+out_dir    = outDir / jobName / f"NORDIC-{denoising}" / "1stLevel" / "visualization"
 out_dir.mkdir(parents=True, exist_ok=True)
 
 # Get Sitek's subcortical atlas
@@ -95,13 +95,13 @@ rois_subcortical = {
 	}
 
 # Fresurfer cortical areas legend
-# 11133 aHG-L  G_temp_sup-G_T_transv  Anterior transverse temporal gyrus (~A1)
-# 12133 aHG-R 
+# 11133 A1-L  G_temp_sup-G_T_transv  Anterior transverse temporal gyrus (~A1)
+# 12133 A1-R 
 # 11136 PT-L   G_temp_sup-Plan_tempo  Planum temporale of the superior temporal gyrus (~A2)
 # 12136 PT-R
 rois_cortical = {
-	'aHG-L' : {'label': 11133},
-	'aHG-R' : {'label': 12133}
+	'A1-L' : {'label': 11133},
+	'A1-R' : {'label': 12133}
 	}
 
 # All rois combined

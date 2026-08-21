@@ -238,7 +238,7 @@ def plot_violins_average(betas, subID, sessions, blocks, plot_rois, n_cols, out_
 
 		fig.suptitle(f"sub-{subID:02d}", fontsize = 16, fontweight = "bold")
 		fig.supxlabel("Timing Deviation [msec]", fontsize = 12)
-		fig.supylabel("Mean % Signal Change [β]", fontsize = 12)
+		fig.supylabel("Beta Estimate [β]", fontsize = 12)
 		fig.tight_layout()
 
 	# Optionally save

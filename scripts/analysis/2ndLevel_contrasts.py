@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <22-06-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <21-08-2026 m.utrosa@bcbl.eu>
 """
 2nd Level Analysis: statistical analysis on contrast img
 Returns:
@@ -7,6 +7,8 @@ Returns:
 - figure showing whether an ROI pair differs in its response to a specific contrast
 """
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# CONDA ENV: source activate nipypee
+
 # Import python packages
 import bids
 import numpy as np
@@ -40,17 +42,16 @@ elif jobName == "when11where":
 save_roi       = False # Applies to extracted ROI arrays
 save_fig       = True
 save_average   = False # Applies to the summed contrast arrays
-average_voxels = True  # Do we average voxels per ROI or not? 
-plot_rois      = ["IC-L", "IC-R", "MGB-L", "MGB-R", "aHG-L", "aHG-R"]
+average_voxels = False # Do we average voxels per ROI or not? If True, the code is wrong.
+                       # TODO: Fix summation over ROIs.
+plot_rois      = ["IC-L", "IC-R", "MGB-L", "MGB-R", "A1-L", "A1-R"]
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# BELOW DO NOT MODIFY
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # *~*~*~*~ Project directories *~*~*~*~
 homePath  = Path("/home/mutrosa/mutrosa/Documents/projects/devLoc")
-resPath   = homePath / "results"
-dataPath  = resPath / jobName / f"NORDIC-{denoising}" / "1stLevel"
-outPath   = resPath / jobName / f"NORDIC-{denoising}" / "2stLevel"
+dataDir   = homePath / "results"
+outDir    = homePath / "tests"
+dataPath  = dataDir / jobName / f"NORDIC-{denoising}" / "1stLevel"
+outPath   = outDir / jobName / f"NORDIC-{denoising}" / "2ndLevel"
 outPath.mkdir(parents=True, exist_ok=True)
 
 # *~*~*~*~ Experiment info *~*~*~*~
@@ -62,6 +63,11 @@ sessions = 234567 # appears in the filenames
 acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"]
 blocks = "1234" # appears in the filenames
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# BELOW DO NOT MODIFY
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # *~*~*~*~ Atlases *~*~*~*~
 # Get Sitek's subcortical atlas
 atlas_subcor_name = f"sub-invivo_resampled_to-{space}_sub-{subID:02d}_ses-{anatID:02d}.nii.gz"
@@ -85,11 +91,14 @@ rois_subcortical = {
 	}
 
 # Fresurfer cortical areas legend
-# 11133 aHG-L  G_temp_sup-G_T_transv  Anterior transverse temporal gyrus (~A1)
-# 12133 aHG-R 
+# G_temp_sup-G_T_transv is the anterior transverse temporal gyrus (A1)
+# Heschl's gyrus is the transverse temporal gyrus
+# aHG is ambiguous: auditory or anterior?
+# 11133 A1-L
+# 12133 A1-R 
 rois_cortical = {
-	'aHG-L' : {'label': 11133},
-	'aHG-R' : {'label': 12133}
+	'A1-L' : {'label': 11133},
+	'A1-R' : {'label': 12133}
 	}
 
 # All rois combined
@@ -167,7 +176,7 @@ all_cons_trans = {}
 for name, array_list in all_cons.items():
     all_cons_trans[name] = np.stack(array_list, axis=1)
 
-# Get mean contrast values per each run
+# Get mean contrast values per run
 mean_con = {}
 for name, array_list in all_cons_trans.items():
     mean_con[name] = np.mean(array_list, axis=0) #TODO: include empty or not? 
@@ -420,7 +429,7 @@ for j in range(n_rois, len(axes)):
 fig.text(
     0,
     0.5,
-    'Contrast Estimate (freqDev - timDev)',
+    'Contrast Estimate (timDev > freqDev)',
     va='center',
     rotation='vertical',
     fontsize=14

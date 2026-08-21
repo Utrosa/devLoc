@@ -74,12 +74,12 @@ for key in confound_meta:
 fig, axes = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
 
 # Translations
-motion[["trans_x", "trans_y", "trans_z"]].plot(ax=axes[0])
+motion[["trans-x", "trans-y", "trans-z"]].plot(ax=axes[0])
 axes[0].set_ylabel("Translation [mm]")
 axes[0].set_title("Motion Parameters")
 
 # Rotations
-motion[["rot_x", "rot_y", "rot_z"]].plot(ax=axes[1])
+motion[["rot-x", "rot-y", "rot-z"]].plot(ax=axes[1])
 axes[1].set_ylabel("Rotation [rad]")
 axes[1].set_xlabel("Volume")
 
