@@ -1,0 +1,21 @@
+metadata:
+  source_subcortical: "Sitek et al., 2019"
+  source_cortical: "Destrieux et al., 2010"
+
+# Size represents the volume (mm3) of in-vivo functional clusters 
+subcortical:
+#  CN-L: {'size': 11, 'label': 1}
+#  CN-R: {'size': 11, 'label': 2}
+#  SOC-L: {'size': 29, 'label': 3}
+#  SOC-R: {'size': 29,  'label': 4}
+  IC-L: {'size': 146, 'label': 5}
+  IC-R: {'size': 146, 'label': 6}
+  MGB-L: {'size': 152, 'label': 7}
+  MGB-R: {'size': 152, 'label': 8}
+
+# Desikan-Killiany Atlas: aparc+aseg.mgz
+# Destrieux Atlas: aparc.a2009s+aseg.mgz (more areas)
+# G_temp_sup-G_T_transv is the anterior transverse temporal gyrus (A1)
+cortical:
+  A1-L: {'label': 11133}
+  A1-R: {'label': 12133}
