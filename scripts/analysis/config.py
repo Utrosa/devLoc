@@ -1,11 +1,15 @@
 #! /usr/bin/env python
-# Time-stamp: <21-08-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <31-08-2026 m.utrosa@bcbl.eu>
 """
 Configuration for the following scripts:
 - resample_atlas
+- contrasts
+- spmT
+- betas
 """
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# CONDA ENV: source activate nipypee
+# Citrix: source activate nipypee
+# Local : conda activate nipypee
 
 # Import python packages
 import bids
@@ -65,17 +69,18 @@ dataPath  = dataDir / jobName / f"NORDIC-{denoising}" / "1stLevel"
 data_1stLevel = dataDir / jobName / f"NORDIC-{denoising}" / "1stLevel"
 
 # !FOR CONTRASTS
-outPath   = outDir / jobName / f"NORDIC-{denoising}" / "2ndLevel"
-outPath.mkdir(parents=True, exist_ok=True)
+ = outDir / jobName / f"NORDIC-{denoising}" / "2ndLevel"
+outPath_con.mkdir(parents=True, exist_ok=True)
+contrast_label = "con_space-T1wFOV_0001.nii" # name of the files from 1st Level Analysis
 
 # !FOR BETAS
-out_dir    = outDir / jobName / f"NORDIC-{denoising}" / "1stLevel" / "visualization"
-out_dir.mkdir(parents=True, exist_ok=True)
+out_dir_beta  = outDir / jobName / f"NORDIC-{denoising}" / "1stLevel" / "visualization"
+out_dir_beta.mkdir(parents=True, exist_ok=True)
 
 # *~*~*~*~ Experiment info *~*~*~*~
 subID  = 5
 anatID = 2
-space  = "T1w" #TO: What is the differences between T1w and T1wFOV
+space  = "T1w" #TODO: What is the differences between T1w and T1wFOV
 task   = "timDev"
 sesIDs = [2, 3, 4, 5, 6, 7] # 2, 3, 4, 5, 6, 7
 sessions = 234567 # appears in the filenames
@@ -92,9 +97,20 @@ freesurfer_dir = mriPath / "sourcedata" / "freesurfer" / f"sub-{subID:02d}_ses-{
 # *~*~*~*~ Atlases *~*~*~*~
 with open("rois.yaml", "r") as f:
     data = yaml.safe_load(f)
+rois_cortical    = data["cortical"]
+rois_subcortical = data["subcortical"]
 rois = data["subcortical"] | data["cortical"]
 
-# Data names
-contrast_label = "con_space-T1wFOV_0001.nii"
-b=2
-beta_label = f"beta_space-T1wFOV_{b:04d}.nii" # TODO: define b
+# Get Sitek's subcortical atlas
+atlas_subcor_name = f"sub-invivo_resampled_to-{space}_sub-{subID:02d}_ses-{anatID:02d}.nii.gz"
+atlas_subcor_path = homePath / "templates" / atlas_subcor_name
+
+# Get FreeSurfer's parcellation: Destrieux Atlas
+atlas_cor_name  = f"aparc.a2009s+aseg_NORDIC-{denoising}_space-{space}.nii.gz"
+atlasPath       = homePath / "templates"
+atlas_cor_path  = atlasPath / atlas_cor_name
+
+# !FOR SPM t-images
+atlas_path   = homePath / "templates" / f"sub-invivo_resampled_to-{space}_sub-{subID:02d}_ses-{anatID:02d}.nii.gz"
+out_dir_spmt = homePath / "results" / "visualization"
+out_dir_spmt.mkdir(exist_ok=True)

@@ -1,127 +1,34 @@
 #! /usr/bin/env python
-# Time-stamp: <21-08-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <31-08-2026 m.utrosa@bcbl.eu>
 """
-2nd Level Analysis: statistical analysis on contrast img
+2nd level analysis on contrast img
 Returns:
 - effect sizes, p-values, and t-tests for each region pair
 - figure showing whether an ROI pair differs in its response to a specific contrast
 """
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # CONDA ENV: source activate nipypee
-
-# Import python packages
-import bids
-import numpy as np
-import pandas as pd
-import nibabel as nib
-import seaborn as sns
-from pathlib import Path
-import matplotlib.pyplot as plt
-
-from scipy.stats import wilcoxon   # rank test    
-from itertools import combinations # generate all possible combos
-                                   # order does not matter 
-
-# Import custom-made functions
-import grabber
-import roisExtVis as rem
-
-# 00. Prerequisites -------------------------------------------------
-# *~*~*~*~ Which job is submitted? *~*~*~*~
-# J1: whenwhat (timDev vs freqDev)
-# J2: when11where (abs timDev vs freqDev)
-jobName = "whenwhat"
-denoising = True # NORDIC True or False
-
-if jobName == "whenwhat":
-    conditions = ["timDev", "freqDev"]
-elif jobName == "when11where":
-    conditions = [4, 8, 13, 19, 27, 36, 48, 63, 80, 100, 125]
-
-# *~*~*~*~ Summation and plotting preferences *~*~*~*~
-save_roi       = False # Applies to extracted ROI arrays
-save_fig       = True
-save_average   = False # Applies to the summed contrast arrays
-average_voxels = False # Do we average voxels per ROI or not? If True, the code is wrong.
-                       # TODO: Fix summation over ROIs.
-plot_rois      = ["IC-L", "IC-R", "MGB-L", "MGB-R", "A1-L", "A1-R"]
-
-# *~*~*~*~ Project directories *~*~*~*~
-homePath  = Path("/home/mutrosa/mutrosa/Documents/projects/devLoc")
-dataDir   = homePath / "results"
-outDir    = homePath / "tests"
-dataPath  = dataDir / jobName / f"NORDIC-{denoising}" / "1stLevel"
-outPath   = outDir / jobName / f"NORDIC-{denoising}" / "2ndLevel"
-outPath.mkdir(parents=True, exist_ok=True)
-
-# *~*~*~*~ Experiment info *~*~*~*~
-subID  = 5
-anatID = 2
-space  = "T1w"
-sesIDs = [2, 3, 4, 5, 6, 7] # 2, 3, 4, 5, 6, 7
-sessions = 234567 # appears in the filenames
-acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"]
-blocks = "1234" # appears in the filenames
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# BELOW DO NOT MODIFY
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# *~*~*~*~ Atlases *~*~*~*~
-# Get Sitek's subcortical atlas
-atlas_subcor_name = f"sub-invivo_resampled_to-{space}_sub-{subID:02d}_ses-{anatID:02d}.nii.gz"
-atlas_subcor_path = homePath / "templates" / atlas_subcor_name
-
-# Get FreeSurfer's parcellation: Destrieux Atlas
-atlas_cor_name  = f"aparc.a2009s+aseg_NORDIC-{denoising}_space-{space}.nii.gz"
-atlasPath       = homePath / "templates"
-atlas_cor_path  =  atlasPath / atlas_cor_name
-
-# *~*~*~*~ ROIs *~*~*~*~
-rois_subcortical = {
-	# 'CN-L'  : {'size': 11, 'label': 1},
-	# 'CN-R'  : {'size': 11, 'label': 2},
-	# 'SOC-L' : {'size': 29, 'label': 3},
-	# 'SOC-R' : {'size': 29,  'label': 4},
-	'IC-L'  : {'size': 146, 'label': 5},
-	'IC-R'  : {'size': 146, 'label': 6},
-	'MGB-L' : {'size': 152, 'label': 7},
-	'MGB-R' : {'size': 152, 'label': 8}
-	}
-
-# Fresurfer cortical areas legend
-# G_temp_sup-G_T_transv is the anterior transverse temporal gyrus (A1)
-# Heschl's gyrus is the transverse temporal gyrus
-# aHG is ambiguous: auditory or anterior?
-# 11133 A1-L
-# 12133 A1-R 
-rois_cortical = {
-	'A1-L' : {'label': 11133},
-	'A1-R' : {'label': 12133}
-	}
-
-# All rois combined
-rois = rois_subcortical | rois_cortical
+import config as c
+from utils import extract_roi_array
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 01. Average all contrast images into one and save to disk ---------
 contrast_info = []
-for sesID in sesIDs:
-    for acqID in acqIDs:
+for sesID in c.sesIDs:
+    for acqID in c.acqIDs:
         con_dict = {}; con_dict["sesID"] = sesID; con_dict["acqID"] = acqID
         name_contrast = "con_space-T1wFOV_0001.nii" # T1 > boldref FOV
-        contrast_fold = dataPath / f"sub-{subID:02d}" / f"ses-{sesID:02d}" / f"acq-{acqID}"
+        contrast_fold = c.dataPath / f"sub-{c.subID:02d}" / f"ses-{sesID:02d}" / f"acq-{acqID}"
         contrast_path = contrast_fold / name_contrast
         con_dict["con_path"] = contrast_path
         contrast_info.append(con_dict)
 
 con_img = sum([nib.load(con["con_path"]).get_fdata() for con in contrast_info])
 contrast_affine = nib.load(contrast_info[0]["con_path"]).affine
-if save_average:
+if c.save_average:
     nib.save(
             nib.Nifti1Image(con_img, contrast_affine),
-            outPath / f"con_ses-{sessions}_acq-BLOCK{blocks}_0001.nii.gz"
+            outPath_con / f"con_ses-{c.sessions}_acq-BLOCK{c.blocks}_0001.nii.gz"
     )
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -129,37 +36,37 @@ if save_average:
 # If average_voxels == False, return for each ROI, a list of n_runs
 # arrays with n_voxel values. If True, one value (array) per ROI.
 # Shape: (n_runs, n_voxels)
-all_cons = {name : [] for name in rois.keys()}
+all_cons = {name : [] for name in c.rois.keys()}
 for contrast_dict in contrast_info:
         
         # Extract the subcortical arrays		
-		mask_subcor, _, con__subcor_affine = rem.extract_roi_array(
-            subID,
+		mask_subcor, _, con__subcor_affine = extract_roi_array(
+            c.subID,
             contrast_dict["sesID"],
             contrast_dict["acqID"],
-            atlas_subcor_path,
-            space,
+            c.atlas_subcor_path,
+            c.space,
             contrast_dict["con_path"],
-            rois_subcortical,
-            outPath,
+            c.rois_subcortical,
+            c.outPath_con,
             verbose=False,
-            save=save_roi,
-            average_voxels=average_voxels 
+            save=c.save_roi,
+            average_voxels=c.average_voxels 
 		)
 		
         # Extract the cortical arrays
-		mask_cor, _, con_cor_affine = rem.extract_roi_array(
-            subID,
+		mask_cor, _, con_cor_affine = extract_roi_array(
+            c.subID,
             contrast_dict["sesID"],
             contrast_dict["acqID"],
-            atlas_cor_path,
-            space,
+            c.atlas_cor_path,
+            c.space,
             contrast_dict["con_path"],
-            rois_cortical,
-            outPath,
+            c.rois_cortical,
+            c.outPath_con,
             verbose=False,
-            save=save_roi,
-            average_voxels=average_voxels
+            save=c.save_roi,
+            average_voxels=c.average_voxels
         )
 		
         # Accumulate subcortical arrays for summation
@@ -181,9 +88,10 @@ mean_con = {}
 for name, array_list in all_cons_trans.items():
     mean_con[name] = np.mean(array_list, axis=0) #TODO: include empty or not? 
 roi_names = list(mean_con.keys())
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03a. Compare contrasts per ROI against ZERO -----------------------
-# Question: Does this specific ROI distinguish between freqDev and timDev?
+# RQ: Does this specific ROI distinguish between freqDev and timDev?
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # One sample t-tests
 results_one_sample = []
@@ -436,8 +344,8 @@ fig.text(
 )
 
 # *~*~*~*~ Optionally save
-if save_fig:
-    fig_name = f"sub-{subID:02d}_ses-{sessions}_block-{blocks}_space-{space}_contrast-{jobName}_one_sample.png"
+if c.save_fig:
+    fig_name = f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_contrast-{jobName}_one_sample.png"
     fig_path = outPath / fig_name
     plt.savefig(fig_path, dpi=300, bbox_inches="tight")
     plt.close(fig)
@@ -587,8 +495,8 @@ for j in range(n_tests, len(axes)):
     fig.delaxes(axes[j])
 
 # *~*~*~*~ Optionally save # TODO: saving not GOOD
-if save_fig:
-    fig_name = f"sub-{subID:02d}_ses-{sessions}_block-{blocks}_space-{space}_contrast-{jobName}.png"
+if c.save_fig:
+    fig_name = f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_contrast-{c.jobName}.png"
     fig_path = outPath / fig_name
     plt.savefig(fig_path, dpi = 300, bbox_inches = "tight")
     plt.close(fig)

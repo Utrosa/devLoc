@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <24-06-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <31-08-2026 m.utrosa@bcbl.eu>
 # Citrix: source activate localizer_fMRI
 # Local:  conda activate localizer_fMRI
 # -----------------------------------------------------------------------------
@@ -19,7 +19,7 @@ Prerequisites:
 '''
 import config as c
 import subprocess
-from resample_utils import resample_img, compare_img
+from utils import resample_img, compare_img
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 00. PREPARATION -------------------------------------------------------------
