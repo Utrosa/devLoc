@@ -1,299 +1,446 @@
 #! /usr/bin/env python
-# Time-stamp: <31-08-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <02-09-2026 m.utrosa@bcbl.eu>
 """
-2nd level analysis on contrast img
+Conducts the 2nd level analysis on averaged contrast image
+
 Returns:
 - effect sizes, p-values, and t-tests for each region pair
 - figure showing whether an ROI pair differs in its response to a specific contrast
 """
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# CONDA ENV: source activate nipypee
+
+# Import python packages
+import numpy as np
+import pandas as pd
+import nibabel as nib
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.stats import wilcoxon
+from itertools import combinations # generate all possible combos
+                                   # order does not matter 
+
+# Import custom-made functions
 import config as c
 from utils import extract_roi_array
+from config import plotConf, apply_figure_style
+apply_figure_style()
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 01. Average all contrast images into one and save to disk ---------
-contrast_info = []
-for sesID in c.sesIDs:
-    for acqID in c.acqIDs:
-        con_dict = {}; con_dict["sesID"] = sesID; con_dict["acqID"] = acqID
-        name_contrast = "con_space-T1wFOV_0001.nii" # T1 > boldref FOV
-        contrast_fold = c.dataPath / f"sub-{c.subID:02d}" / f"ses-{sesID:02d}" / f"acq-{acqID}"
-        contrast_path = contrast_fold / name_contrast
-        con_dict["con_path"] = contrast_path
-        contrast_info.append(con_dict)
-
-con_img = sum([nib.load(con["con_path"]).get_fdata() for con in contrast_info])
-contrast_affine = nib.load(contrast_info[0]["con_path"]).affine
-if c.save_average:
-    nib.save(
-            nib.Nifti1Image(con_img, contrast_affine),
-            outPath_con / f"con_ses-{c.sessions}_acq-BLOCK{c.blocks}_0001.nii.gz"
+# MAIN TODOS: make it work for conditions regardless of the number of conditions
+#             make it work for for averaging across voxels and runs
+# TODO: 03b. could be extended to compare voxels (or voxel groups) per roi.
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 00. Check that inputs are defined correctly
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+if c.average_voxels and c.average_runs:
+    raise ValueError(
+        "Statistical tests cannot be performed when averaging across BOTH runs and voxels. "
+        "This results in a single scalar value per ROI (N=1). "
+        "Please set either average_voxels=False or average_runs=False."
     )
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 02. Extract contrast values per voxel from each ROI ---------------
-# If average_voxels == False, return for each ROI, a list of n_runs
-# arrays with n_voxel values. If True, one value (array) per ROI.
-# Shape: (n_runs, n_voxels)
-all_cons = {name : [] for name in c.rois.keys()}
-for contrast_dict in contrast_info:
+if not c.average_voxels and not c.average_runs:
+    raise ValueError(
+        "To perform statistical tests we need one-dimensional arrays, "
+        "which means that the selected values per contrast images "
+        "have to be averaged EITHER across runs or voxels."
+    )
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 01. Sum all contrast images into one (and save to disk)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+con_info = []
+for sesID in c.sesIDs:
+    for acqID in c.acqIDs:
+
+        # Create a contrast dictionary
+        con_dict = {}
+        con_dict["sesID"] = sesID
+        con_dict["acqID"] = acqID
+
+        # Define the contrast file and add to dict
+        con_name = c.con_filename
+        con_fold = c.dataPath / f"sub-{c.subID:02d}" / f"ses-{sesID:02d}" / f"acq-{acqID}"
+        con_path = con_fold / con_name
+
+        # Check that the file exists
+        if con_path.exists():
+            con_dict["con_path"] = con_path
+        else:
+            raise FileNotFoundError(f"The file does not exit: {con_path}")
+        # Append the dict to a list of contrasts
+        con_info.append(con_dict)
+
+# Sum the contrasts images
+con_img_sum = sum([nib.load(con["con_path"]).get_fdata() for con in con_info])
+con_affine  = nib.load(con_info[0]["con_path"]).affine
+print("\nAssuming all contrast images have the same affine.")
+
+# Optionally, save the summed contrast
+if c.save_summed:
+    sum_name = f"sub-{c.subID:02d}_ses-{c.sessions}_acq-BLOCK{c.blocks}_summed-{c.con_filename}.gz"
+    nib.save(
+        nib.Nifti1Image(con_img_sum, con_affine),
+        c.out_2nd / sum_name
+        )
+    print(f"\nSaved summed contrast image as {sum_name} to {c.out_2nd}.\n")
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 02a. Extract contrast values per voxel from each ROI.
+# Shape of the extracted roi array: (n_runs, n_voxels)
+# Size: {[[], []], # ROI 1: n_run lists with each sublist having n_voxel items
+#        [[], []]}
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Initialize a dictionary to save extracted values
+extracted_con = {name : [] for name in c.rois.keys()}
+roi_names = list(extracted_con.keys())
+
+# Iterate through each contrast image in the list of contrasts images
+for con_dict in con_info:
         
         # Extract the subcortical arrays		
-		mask_subcor, _, con__subcor_affine = extract_roi_array(
+        mask_subcor, _, con__subcor_affine = extract_roi_array(
             c.subID,
-            contrast_dict["sesID"],
-            contrast_dict["acqID"],
+            con_dict["sesID"],
+            con_dict["acqID"],
             c.atlas_subcor_path,
             c.space,
-            contrast_dict["con_path"],
+            con_dict["con_path"],
             c.rois_subcortical,
-            c.outPath_con,
+            c.out_2nd,
             verbose=False,
             save=c.save_roi,
-            average_voxels=c.average_voxels 
-		)
-		
+            average_voxels=False # Keeping this false for consistency
+        )
+        
         # Extract the cortical arrays
-		mask_cor, _, con_cor_affine = extract_roi_array(
+        mask_cor, _, con_cor_affine = extract_roi_array(
             c.subID,
-            contrast_dict["sesID"],
-            contrast_dict["acqID"],
+            con_dict["sesID"],
+            con_dict["acqID"],
             c.atlas_cor_path,
             c.space,
-            contrast_dict["con_path"],
+            con_dict["con_path"],
             c.rois_cortical,
-            c.outPath_con,
+            c.out_2nd,
             verbose=False,
             save=c.save_roi,
-            average_voxels=c.average_voxels
+            average_voxels=False # Keeping this false for consistency
         )
-		
-        # Accumulate subcortical arrays for summation
-		for name in rois_subcortical.keys():
-			all_cons[name].append(mask_subcor[name])
 
-        # Accumulate cortical arrays for summation
-		for name in rois_cortical.keys():
-			all_cons[name].append(mask_cor[name])
+        # Accumulate subcortical arrays
+        for name in c.rois_subcortical.keys():
+            extracted_con[name].append(mask_subcor[name])
 
-# Invert structure of the dict 
-# For each ROI, have an array of shape (n_voxels, n_runs)
-all_cons_trans = {}
-for name, array_list in all_cons.items():
-    all_cons_trans[name] = np.stack(array_list, axis=1)
+        # Accumulate cortical arrays
+        for name in c.rois_cortical.keys():
+            extracted_con[name].append(mask_cor[name])
 
-# Get mean contrast values per run
-mean_con = {}
-for name, array_list in all_cons_trans.items():
-    mean_con[name] = np.mean(array_list, axis=0) #TODO: include empty or not? 
-roi_names = list(mean_con.keys())
+# Print shape of the raw extracted data
+print("\n--- RAW EXTRACTED DATA ---")
+for roi_name in roi_names:
+    print(f"{roi_name}: {np.shape(extracted_con[roi_name])}")
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 03a. Compare contrasts per ROI against ZERO -----------------------
-# RQ: Does this specific ROI distinguish between freqDev and timDev?
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# One sample t-tests
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 02b. Transform the extracted contrast values.
+# Average across runs or voxels: (n_runs, n_voxels)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+selected_cons = extracted_con
+
+# Collapse runs and voxels:
+if c.average_voxels and c.average_runs:
+    run_voxel_average = {}
+    for name, array_list in selected_cons.items():
+        run_voxel_average[name] = np.mean(array_list) 
+    selected_cons = run_voxel_average 
+
+# Collapse runs: get a mean contrast value across runs
+elif c.average_runs:
+    run_average = {}
+    for name, array_list in selected_cons.items():
+        run_average[name] = np.mean(array_list, axis=0) 
+    selected_cons = run_average
+
+# Collapse voxels: get a mean contrast value across voxels
+elif c.average_voxels:
+    voxel_average = {}
+    for name, array_list in selected_cons.items():
+        voxel_average[name] = np.mean(array_list, axis=1) 
+    selected_cons = voxel_average
+
+# Print update on the structure of array
+print(
+    "\n--- TRANSFORMED EXTRACTED DATA ---",
+    f"\nAveraged across runs: {c.average_runs}",
+    f"\nAveraged across voxels: {c.average_voxels}\n")
+for roi_name in roi_names:
+    if np.isscalar(selected_cons[roi_name]):
+        print(f"{roi_name}: {float(selected_cons[roi_name]):.4f}")
+    else:
+        print(f"{roi_name}: {np.shape(np.array(selected_cons[roi_name]))}")
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 03a. Compare extracted and transformed contrasts per ROI against ZERO
+# RQ: Does this specific ROI distinguish between the defined contrast?
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+print(
+    "\nPerforming two-sided Wilcoxon rank tests per ROI against 0 "
+    f"for contrast {c.con_name}.\n"
+)
 results_one_sample = []
 for roi in roi_names:
-    data = mean_con[roi]
-    
-    # Remove NaNs if any (optional but safe) #TODO: include empty or not? 
-    data_clean = data[~np.isnan(data)]
 
+    data = np.array(selected_cons[roi])
+
+    # Ensure data is 1D
+    if data.ndim == 0:
+        raise ValueError(
+            f"\nFor ROI '{roi}' the data is a scalar (N=1). "
+            "Cannot perform statistics. Check averaging settings."
+        )
+    elif data.ndim > 1:
+        raise ValueError(
+            f"\nFor ROI '{roi}' the data is not 1D: {data.shape}. "
+            "Check averaging parameters. Wilcoxon test requires one-dimensional input.")
+    
     # One-sample Wilcoxon Signed-Rank Test (non-parametric)
     # Tests if the median of the distribution is different from 0
-    # regardless of the distibution of the data.
-    res_wilcox = wilcoxon(   # TODO check this function
-        x = data_clean, 
-        y = None,                  # None implies one-sample test against 0
-        zero_method = "pratt", 
-        correction  = False, 
+    res_wilcox = wilcoxon(
+        x = data,                   # Must be 1D
+        y = None,                   # None implies one-sample test against 0
+        zero_method = "pratt",      # Includes zero-differences in the ranking process
+        correction  = False,        # Default
         alternative = "two-sided",
-        method = "auto"
+        method      = "auto"        # Default
     )
     
     statistic = res_wilcox.statistic
     p_value   = res_wilcox.pvalue
     
-    # Calculate effect size
-    cohen_d = np.mean(data_clean) / np.std(data_clean, ddof=1) if np.std(data_clean, ddof=1) > 0 else 0
+    # Calculate metrics (and control for division by zero)
+    mean_val = np.mean(data)
+    std_val  = np.std(data, ddof=c.ddof)
+    cohen_d  = mean_val / std_val if std_val > 0 else np.nan
     
+    # Append to list
     results_one_sample.append({
-        "roi"       : roi,
-        "n_runs"    : len(data_clean),
-        "mean_contrast": np.mean(data_clean),
-        "std_contrast" : np.std(data_clean, ddof=1),
-        "stat"      : statistic,
-        "p_value"   : p_value,
-        "cohen_d"   : cohen_d
+        "roi"            : roi,
+        "N"              : len(data),
+        "mean_contrast"  : mean_val,
+        "std_contrast"   : std_val,
+        "stat"           : statistic,
+        "p_value"        : p_value,
+        "cohen_d"        : cohen_d
     })
 
-# Create DataFrame and apply Bonferroni correction
+# Create and display DataFrame
 df_results_against0 = pd.DataFrame(results_one_sample)
+print(df_results_against0.head())
+
+# Calculate the number of tests for Bonferroni correction
 n_tests = len(df_results_against0)
+print(f"\nThe Bonferroni correction is applied for {n_tests} tests.")
 
-# Adjust p-values
+# Adjust p-values with Bonferroni
 df_results_against0['p_value_bonferroni'] = df_results_against0['p_value'] * n_tests
-df_results_against0['p_value_bonferroni'] = df_results_against0['p_value_bonferroni'].clip(upper=1.0)
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 03b. Compare pairs of ROIs to see if they respond differently ------
-# Is the contrast estimate larger in one ROI than the other across runs?
-# Paired rank sum tests
-results_paired = []
-
-for roi_a, roi_b in combinations(roi_names, 2):
-    data_a = mean_con[roi_a]
-    data_b = mean_con[roi_b]
-    
-    # Ensure lengths match (they should if n_runs is consistent)
-    if len(data_a) != len(data_b):
-        continue
-        
-    # The Wilcoxon rank-sum test
-    # The null hypothesis: the two related paired samples (rois) come from the same distribution. 
-    # See: https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.wilcoxon.html#scipy.stats.wilcoxon
-    diff_data = np.round(data_a - data_b, decimals=8)
-    res = wilcoxon(
-        x = diff_data,             # Differences between two sets of measurements (1D)  
-        y = None,                  # Keep undefined to avoid roundoff error 
-        zero_method = "pratt",     # Conservative: includes zero-differences, but drops ranks of the zeros 
-                                   # DOI:10.1080/01621459.1959.10501526 and DOI:10.2307/3001968
-        correction  = False,       # Default: does not apply continuinty correction
-        alternative = "two-sided", # d = x 
-        method = "auto",           # How to compute p-value: auto, exact, asymptotic
-        axis = 0,
-        nan_policy = "propagate"   # How to handle nan-values: propagate or omit 
-    )
-    results_paired.append({
-        "roi_a"   : roi_a,
-        "roi_b"   : roi_b,
-        "stat"    : res.statistic, # The sum of the ranks of the differences above or below zero (for two-sided)
-        "p_value" : res.pvalue,
-        "cohen_d" : np.mean(diff_data) / np.std(diff_data, ddof = 1) # ddof is 1 for sample SD (Bessel's correction)    
-
-    })
-
-# Create a dataframe and apply Bonferroni correction
-df_results_paired = pd.DataFrame(results_paired)
-n_tests    = len(df_results_paired)
-
-# Adjust p-vaues with Bonferroni correction
-df_results_paired['p_value_bonferroni'] = df_results_paired['p_value'] * n_tests
 
 # Reduce the adjusted p-values that exceed 1 to 1
-df_results_paired['p_value_bonferroni'] = df_results_paired['p_value_bonferroni'].clip(upper=1.0)
+df_results_against0['p_value_bonferroni'] = df_results_against0['p_value_bonferroni'].clip(upper=1.0)
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 4a. Plotting -------------------------------------------------------
-# RQ: Are the contrast values within each individual ROI 
-# significantly different from zero?
-# *~*~*~*~ Style settings
-sns.set_context("paper", font_scale=1.3)
-sns.set_style("white")
-plt.rcParams['font.family'] = 'sans-serif'
-plt.rcParams['font.sans-serif'] = ['Helvetica', 'Arial', 'DejaVu Sans']
-plt.rcParams['axes.linewidth'] = 1.2
+# Save dataframe
+df_results_against0.to_csv(
+    c.out_2nd / f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_job-{c.jobName}_con-{c.con_name}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}_test-against0.csv",
+    index=False
+)
 
-# Define a single color for the contrast freqDev - timDev
-contrast_color = "#9EDDFB" 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 03b. Compare pairs of ROIs to see if they respond differently
+# RQ: Is the contrast estimate larger in one ROI than another?
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+print(
+    "\nPerforming two-sided, paired Wilcoxon rank tests "
+    f"for contrast {c.con_name}.\n"
+)
 
-# *~*~*~*~ Setup grid and axes
-n_rois = len(df_results_against0)
-cols = 2
-rows = int(np.ceil(n_rois / cols))
+# Paired rank sum tests can only be done comparing arrays of equal length.
+# Compare rois across runs because this ensures the same number of observations.
+if c.average_voxels:
+    results_paired = []
+    for roi_a, roi_b in combinations(roi_names, 2):
+        
+        # Extract the paired arrays
+        data_a = np.array(selected_cons[roi_a])
+        data_b = np.array(selected_cons[roi_b])
+        
+        # Ensure lengths match
+        if len(data_a) != len(data_b):
+            continue
 
+        # Ensure both data are 1D
+        if data_a.ndim == 0 or data_b.ndim == 0:
+            raise ValueError(
+                f"\nFor ROI {roi_a} or {roi_b} the data is a scalar (N=1). "
+                "Cannot perform statistics. Check averaging settings."
+            )
+        elif data_a.ndim > 1 or data_b.ndim > 1:
+            raise ValueError(
+                f"\nFor ROI {roi_a} or {roi_b} the data is not 1D: {data_a.shape} and {data_b.shape}."
+                " Check averaging parameters. Wilcoxon test requires one-dimensional input.")
+        
+        # The null hypothesis: the two related paired samples (rois) come from the same distribution. 
+        diff_data = np.round(data_a - data_b, decimals=8)
+        res = wilcoxon(
+            x = diff_data,             # Differences between two sets of measurements (1D)  
+            y = None,                  # Keep undefined to avoid roundoff error 
+            zero_method = "pratt",     # Conservative: includes zero-differences 
+            correction  = False,       # Default
+            alternative = "two-sided", # d = x 
+            method      = "auto",      # Default
+            axis        = 0,
+            nan_policy  = "propagate"  # How to handle nan-values: propagate or omit 
+        )
+
+        # Calculate metrics
+        mean_val  = np.mean(diff_data)
+        std_val   = np.std(diff_data, ddof=c.ddof)
+        cohen_val = mean_val / std_val if std_val > 0 else np.nan
+
+        # Append metrics
+        results_paired.append({
+            "roi_a"   : roi_a,
+            "roi_b"   : roi_b,
+            "mean"    : mean_val,
+            "std"     : std_val,
+            "stat"    : res.statistic, # This is the sum of the ranks of the differences
+                                       # above or below zero (for two-sided)
+            "p_value" : res.pvalue,
+            "cohen_d" : cohen_val
+        })
+
+    # Create and display the dataframe
+    df_results_paired = pd.DataFrame(results_paired)
+    print(df_results_paired.head())
+
+    # Apply Bonferroni correction
+    n_tests = len(df_results_paired)
+    print(f"\nThe Bonferroni correction is applied for {n_tests} tests.")
+
+    # Adjust p-vaues with Bonferroni correction
+    df_results_paired['p_value_bonferroni'] = df_results_paired['p_value'] * n_tests
+
+    # Reduce the adjusted p-values that exceed 1 to 1
+    df_results_paired['p_value_bonferroni'] = df_results_paired['p_value_bonferroni'].clip(upper=1.0)
+
+    # Save dataframe
+    df_results_paired.to_csv(
+        c.out_2nd / f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_job-{c.jobName}_con-{c.con_name}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}_test-paired.csv",
+        index=False
+    )
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 04a. Plotting results from inferential tests in 03a
+# RQ: Are the contrast values per ROI significantly different from zero?
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+print(
+    "\nThe session and acquisition labels corresponding to each run are saved "
+    f"in 'con_info' variable. The order of contrast images (filenames) in it "
+    "corresponds to the order of runs in the data that is being plotted."
+    )
+color   = "#9EDDFB" 
+df_plot = df_results_against0.copy()
+n_rois  = len(df_plot)
+
+# Grid
 fig, axes = plt.subplots(
-    rows,
-    cols,
-    figsize=(12,15),
-    constrained_layout=True
+    int(np.ceil(n_rois / plotConf["cols"])),
+    plotConf["cols"],
+    figsize=plotConf["figsize"],
+    constrained_layout=True,
+    sharey=True
 )
 axes = axes.flatten()
 
-# *~*~*~*~ Sort the dataframe
-df_plot = df_results_against0.copy()
-df_plot = df_plot.sort_values('cohen_d', key=abs, ascending=False).reset_index(drop=True)
+# Get limits for y axis
+all_values = []
+for _, row in df_plot.iterrows():
+    roi_name = row['roi']
+    data = selected_cons[roi_name]
+    all_values.extend(data)
+global_min = min(all_values)
+global_max = max(all_values)
+range_val  = global_max - global_min
+y_min_global = global_min - (range_val * 0.1)
+y_max_global = global_max + (range_val * 0.1)
 
-# *~*~*~*~ Plotting loop
+# Plotting loop
 for idx, (_, row) in enumerate(df_plot.iterrows()):
     ax = axes[idx]
     roi_name = row['roi']
     
-    # Get raw data for this specific ROI
-    data = mean_con[roi_name]
-    data_clean = data[~np.isnan(data)]
-    n_runs = len(data_clean)
+    # Get raw data
+    data = selected_cons[roi_name]
+    n_runs = len(data)
     
-    # Create a dataframe for seaborn
+    # Create plotting dataframe
     plot_df = pd.DataFrame({
         'ROI': [roi_name] * n_runs,
-        'Value': data_clean,
-        'Run_ID': list(range(1, n_runs + 1))
+        'Value': data,
+        'Run': list(range(1, n_runs + 1))
     })
-    
+
     # A. Plot violin
     sns.violinplot(
         data=plot_df, 
         x='ROI', 
         y='Value',
         ax=ax,
-        color=contrast_color, 
-        inner=None,          # No internal quartiles to keep it clean
+        color=color, 
+        inner=None,
         linewidth=1.2,
-        width=0.5
+        width=0.2, # Make the violin compact
+        cut=0 # Limit the violin within the data range!
     )
     
-    # B. Plot individual points (the 24 runs)
+    # B. Plot individual points: voxels or runs
     sns.swarmplot(
-        data=plot_df,
-        x='ROI',
-        y='Value',
-        ax=ax,
-        color='black',
-        size=6,
-        zorder=10
-    )
+            data=plot_df,
+            x='ROI',
+            y='Value',
+            hue='Run',
+            ax=ax,
+            size=6,
+            zorder=10,
+            palette="YlOrBr",
+            legend=False
+        )
 
-    # C. Overlay Mean and Error Bar (SEM)
-    mean_val = np.mean(data_clean)
-    sem_val = np.std(data_clean, ddof=1) / np.sqrt(n_runs)
+    # C. Overlay mean, SEM bar, and zero-reference line
+    mean_val = np.mean(data)
+    sem_val = np.std(data, ddof=c.ddof) / np.sqrt(n_runs)
     
-    # Plot mean as a large white dot with black edge
+    # Mean is a large black dot with black edge
     ax.scatter(0.03, mean_val, 
-               color="#F7F3EF", edgecolor='#F7F3EF', s=35, marker='o', 
-               zorder=11, linewidth=0.6, label='Mean')
+               color="black", edgecolor='black', s=35, marker='o', 
+               zorder=11, linewidth=0.6)
     
-    # Plot Error Bar (SEM)
+    # Plot error bar in orange
     ax.errorbar(0.03, mean_val, yerr=sem_val, 
                 fmt='none', ecolor='#FF8C00', linewidth=1.2, 
                 capsize=6, capthick=2, zorder=12)
     
-    # Reference line at ZERO (Crucial for one-sample test)
-    ax.axhline(0, color='black', linestyle='--', linewidth=1.5, alpha=0.9, zorder=1)
+    # Reference line at zero
+    ax.axhline(0, color='black', linestyle='--', linewidth=1.5, alpha=0.8, zorder=1)
 
-    # Significance Annotation (Against Zero)
-    p_val = row['p_value_bonferroni']
+    # D. Annotate significance (against zero) and add titles
+    p_val  = row['p_value_bonferroni']
     is_sig = p_val < 0.05
     
     # Determine position for stars (above the max value or above the error bar)
-    y_max = ax.get_ylim()[1]
-    y_range = y_max - ax.get_ylim()[0]
+    y_range = y_max_global - y_min_global
     
-    # Dynamic positioning: place stars above the data
-    star_y = y_max + (y_range * 0.05) 
-    text_y = y_max + (y_range * 0.08)
+    # Place stars above the data
+    star_y = y_max_global + (y_range * 0.05) 
+    text_y = y_max_global + (y_range * 0.08)
     
-    # Adjust ylim to make room for stars if necessary
-    current_ylim = ax.get_ylim()
-    if star_y > current_ylim[1]:
-        ax.set_ylim(current_ylim[0], star_y + (y_range * 0.05))
-
-        # Recalculate positions after ylim change
-        star_y = ax.get_ylim()[1] - (ax.get_ylim()[1] - ax.get_ylim()[0]) * 0.05
-        text_y = ax.get_ylim()[1] - (ax.get_ylim()[1] - ax.get_ylim()[0]) * 0.02
-
+    # Add text
     if is_sig:
         if p_val < 0.001:
             stars = '***'
@@ -305,23 +452,27 @@ for idx, (_, row) in enumerate(df_plot.iterrows()):
             stars = '*'
             p_str = f"{p_val:.4f}"
         
-        ax.text(0, star_y, stars, ha='center', va='bottom', 
-                fontsize=11, fontweight ="bold", color='black')
+        ax.text(0, star_y, stars, ha='center', va='center', 
+                fontsize=plotConf["subplot_fontsize"], fontweight ="bold", color='black')
         ax.text(0, text_y, p_str, ha='center', va='bottom', 
-                fontsize=12, color='black')
+                fontsize=plotConf["subplot_fontsize"], color='black')
     else:
         ax.text(0, star_y, "ns", ha='center', va='bottom', 
-                fontsize=12, color='gray', style='italic')
+                fontsize=plotConf["subplot_fontsize"], color='gray', style='italic')
     
-    # Title shows Mman contrast and effect size
+    # Title with mean contrast value and effect size
     ax.set_title(
         f"{roi_name} | μ={mean_val:.3f}, d={row['cohen_d']:.2f}",
-        fontsize=12,
-        pad=8
+        fontsize=plotConf["subplot_fontsize"],
+        pad=10,
+        va='top'
     )
     ax.set_ylabel("")
     ax.set_xlabel("")
     ax.set_xticks([])
+
+    # Apply y limits
+    ax.set_ylim(y_min_global, y_max_global)
 
     # Spines
     ax.spines['top'].set_visible(False)
@@ -337,169 +488,162 @@ for j in range(n_rois, len(axes)):
 fig.text(
     0,
     0.5,
-    'Contrast Estimate (timDev > freqDev)',
+    f'Contrast Estimate ({c.con_name})',
     va='center',
     rotation='vertical',
-    fontsize=14
+    fontsize=plotConf["fig_fontsize"]
 )
 
-# *~*~*~*~ Optionally save
+# Optionally save and show the figure
 if c.save_fig:
-    fig_name = f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_contrast-{jobName}_one_sample.png"
-    fig_path = outPath / fig_name
-    plt.savefig(fig_path, dpi=300, bbox_inches="tight")
+    fig_name = f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_job-{c.jobName}_con-{c.con_name}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}_one_sample.png"
+    fig_path = c.out_2nd / fig_name
+    plt.savefig(fig_path, dpi=plotConf["dpi"], bbox_inches="tight")
     plt.close(fig)
 
-# *~*~*~*~ Show
-plt.show()
+if c.show_fig:
+    plt.show()
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 5. Plotting -------------------------------------------------------
-# RQ: 
-# Plots mean contrast estimates (array of 24 values) for each ROI pair
-# *~*~*~*~ Style settings
-sns.set_context("paper", font_scale=1.3)
-sns.set_style("whitegrid")
-plt.rcParams['font.family'] = 'sans-serif'
-plt.rcParams['font.sans-serif'] = ['Helvetica', 'Arial', 'DejaVu Sans']
-plt.rcParams['axes.linewidth'] = 1.2
-cb_palette = ["#FFBB28", "#8B84D8"]
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 04b. Plotting
+# RQ: Do mean contrast estimates differ for each ROI pair?
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# if c.average_voxels:
+#     cb_palette = ["#FFBB28", "#8B84D8"]
 
-# *~*~*~*~ Setup grid and axes
-cols = 3
-rows = int(np.ceil(n_tests / cols))
-fig, axes = plt.subplots(rows, cols, figsize=(12,14), constrained_layout=True)
-axes = axes.flatten()
+#     # *~*~*~*~ Setup grid and axes
+#     cols = plotConf["cols"]
+#     rows = int(np.ceil(n_tests / cols))
+#     fig, axes = plt.subplots(rows, cols, figsize=plotConf["figsize"], constrained_layout=True)
+#     axes = axes.flatten()
 
-# *~*~*~*~ Sort the dataframe
-df_plot = df_results_paired.copy()
-df_plot = df_plot.sort_values('cohen_d', ascending=False).reset_index(drop=True)
+#     # *~*~*~*~ Plotting loop
+#     df_plot = df_results_paired.copy()
+#     for idx, (_, row) in enumerate(df_plot.iterrows()):
+#         ax = axes[idx]
 
-# *~*~*~*~ Plotting loop
-for idx, (_, row) in enumerate(df_plot.iterrows()):
-    ax = axes[idx]
-
-    # Get roi name
-    roi_a_name = row['roi_a']
-    roi_b_name = row['roi_b']
-    
-    # Get raw data
-    data_a = mean_con[roi_a_name]
-    data_b = mean_con[roi_b_name]
-    n_runs = len(data_a)
-    
-    # Create a dataframe for seaborn
-    plot_df = pd.DataFrame({
-        'ROI': [roi_a_name] * n_runs + [roi_b_name] * n_runs,
-        'Value': np.concatenate([data_a, data_b]),
-        'Run_ID': list(range(1, n_runs + 1)) * 2
-    })
-    
-    # Ensure consistency in coloring
-    unique_rois = plot_df['ROI'].unique()
-    current_palette = {roi_a_name: cb_palette[0], roi_b_name: cb_palette[1]}
-
-    # A. Plot split violins
-    sns.violinplot(
-        data=plot_df, 
-        x='ROI', 
-        y='Value',
-        hue='ROI', 
-        ax=ax,
-        palette=current_palette, 
-        hue_order=[roi_a_name, roi_b_name],
-        split=True, 
-        inner=None,
-        linewidth=1.5,
-        alpha=0.8,
-        legend=False
-    )
-    
-    # B. Plot individual points with controlled jitter + correct connections
-    rng = np.random.default_rng(42)
-    jitter_strength = 0.12
-
-    # deterministic jitter for pairing consistency
-    jitter_a = rng.uniform(-jitter_strength, jitter_strength, n_runs)
-    jitter_b = rng.uniform(-jitter_strength, jitter_strength, n_runs)
-
-    x_a = np.zeros(n_runs) + jitter_a
-    x_b = np.ones(n_runs) + jitter_b
-
-    # Scatter individual constrast estimate points
-    ax.scatter(x_a, data_a,
-            color='black', s=35, alpha=0.8,
-            edgecolor='black', linewidth=1, zorder=10)
-
-    ax.scatter(x_b, data_b,
-            color='black', s=35, alpha=0.8,
-            edgecolor='black', linewidth=1, zorder=10)
-
-    # Draw paired connections
-    for i in range(n_runs):
-        ax.plot([x_a[i], x_b[i]],
-                [data_a[i], data_b[i]],
-                color='gray', linewidth=1, alpha=0.6,
-                zorder=5, solid_capstyle='round')
-    
-    # C. Overlay means # TODO: is this necessary
-    # mean_a = np.mean(data_a)
-    # mean_b = np.mean(data_b)
-    # ax.scatter([0, 1], [mean_a, mean_b], 
-    #             color="#5DDDC6", edgecolor="#5DDDC6", s=90, marker='s', zorder=11, linewidth=1.8)
-
-    # D. Significance annotation # TODO: improve so it does NOT cover the violins
-    p_val = row['p_value_bonferroni']
-    is_sig = p_val < 0.001
-    
-    y_min, y_max = ax.get_ylim()
-    y_range = y_max - y_min
-    bracket_y = y_max - (y_range * 0.08)
-    star_y = y_max - (y_range * 0.05)
-    text_y = y_max - (y_range * 0.12)
-
-    if is_sig:
-        ax.plot([0, 1], [bracket_y, bracket_y], color='black', linewidth=1.4)
-        ax.plot([0, 0], [bracket_y, bracket_y - (y_range*0.02)], color='black', linewidth=1.4)
-        ax.plot([1, 1], [bracket_y, bracket_y - (y_range*0.02)], color='black', linewidth=1.4)
+#         # Get roi name
+#         roi_a_name = row['roi_a']
+#         roi_b_name = row['roi_b']
         
-        ax.text(0.5, star_y, '***', ha='center', va='bottom', fontsize=14, fontweight='bold', color='black')
+#         # Get raw data
+#         data_a = selected_cons[roi_a_name]
+#         data_b = selected_cons[roi_b_name]
+#         n_runs = len(data_a)
         
-        if p_val < 0.0001:
-            p_str = f"{p_val:.1e}"
-        else:
-            p_str = f"{p_val:.4f}"
+#         # Create a dataframe for seaborn
+#         # TODO: plot_df is probably wrong!!
+#         plot_df = pd.DataFrame({
+#             'ROI': [roi_a_name] * n_runs + [roi_b_name] * n_runs,
+#             'Value': np.concatenate([data_a, data_b]),
+#             'Run_ID': list(range(1, n_runs + 1)) * 2
+#         })
         
-        ax.text(0.5, text_y, p_str, ha='center', va='top', fontsize=11, color='black', fontweight='bold')
-    else:
-        ax.text(0.5, bracket_y, 'ns', ha='center', va='bottom', fontsize=12, color='gray', style='italic')
+#         # Ensure consistency in coloring
+#         unique_rois = plot_df['ROI'].unique()
+#         current_palette = {roi_a_name: cb_palette[0], roi_b_name: cb_palette[1]}
 
-    # E. Formatting
-    ax.set_title(f"d = {row['cohen_d']:.2f}", fontsize=12, pad=12, fontweight='bold')
-    ax.set_xlabel("")
-    ax.set_ylabel("")
-    ax.set_xticks([0, 1])
-    ax.set_xticklabels([roi_a_name, roi_b_name], fontsize=12, weight='bold')
-    ax.tick_params(axis='y', labelsize=9, direction='in', length=6)
-    ax.tick_params(axis='x', length=0)
-    
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['bottom'].set_linewidth(1.2)
-    ax.spines['left'].set_linewidth(1.2)
-    
-    ax.grid(axis='y', linestyle='--', alpha=0.4, linewidth=0.8, zorder=0)
+#         # A. Plot split violins
+#         sns.violinplot(
+#             data=plot_df, 
+#             x='ROI', 
+#             y='Value',
+#             hue='ROI', 
+#             ax=ax,
+#             palette=current_palette, 
+#             hue_order=[roi_a_name, roi_b_name],
+#             split=True, 
+#             inner=None,
+#             linewidth=1.5,
+#             alpha=0.8,
+#             legend=False
+#         )
+        
+#         # B. Plot individual points with controlled jitter + correct connections
+#         rng = np.random.default_rng(42)
+#         jitter_strength = 0.12
 
-# Hide empty subplots
-for j in range(n_tests, len(axes)):
-    fig.delaxes(axes[j])
+#         # deterministic jitter for pairing consistency
+#         jitter_a = rng.uniform(-jitter_strength, jitter_strength, n_runs)
+#         jitter_b = rng.uniform(-jitter_strength, jitter_strength, n_runs)
 
-# *~*~*~*~ Optionally save # TODO: saving not GOOD
-if c.save_fig:
-    fig_name = f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_contrast-{c.jobName}.png"
-    fig_path = outPath / fig_name
-    plt.savefig(fig_path, dpi = 300, bbox_inches = "tight")
-    plt.close(fig)
+#         x_a = np.zeros(n_runs) + jitter_a
+#         x_b = np.ones(n_runs) + jitter_b
 
-# *~*~*~*~ Show
-plt.show()
+#         # Scatter individual constrast estimate points
+#         ax.scatter(x_a, data_a,
+#                 color='black', s=35, alpha=0.8,
+#                 edgecolor='black', linewidth=1, zorder=10)
+
+#         ax.scatter(x_b, data_b,
+#                 color='black', s=35, alpha=0.8,
+#                 edgecolor='black', linewidth=1, zorder=10)
+
+#         # Draw paired connections
+#         for i in range(n_runs):
+#             ax.plot([x_a[i], x_b[i]],
+#                     [data_a[i], data_b[i]],
+#                     color='gray', linewidth=1, alpha=0.6,
+#                     zorder=5, solid_capstyle='round')
+        
+#         # C. Overlay means # TODO: is this necessary
+#         # mean_a = np.mean(data_a)
+#         # mean_b = np.mean(data_b)
+#         # ax.scatter([0, 1], [mean_a, mean_b], 
+#         #             color="#5DDDC6", edgecolor="#5DDDC6", s=90, marker='s', zorder=11, linewidth=1.8)
+
+#         # D. Significance annotation # TODO: improve so it does NOT cover the violins
+#         p_val = row['p_value_bonferroni']
+#         is_sig = p_val < 0.001
+        
+#         y_min, y_max = ax.get_ylim()
+#         y_range = y_max - y_min
+#         bracket_y = y_max - (y_range * 0.08)
+#         star_y = y_max - (y_range * 0.05)
+#         text_y = y_max - (y_range * 0.12)
+
+#         if is_sig:
+#             ax.plot([0, 1], [bracket_y, bracket_y], color='black', linewidth=1.4)
+#             ax.plot([0, 0], [bracket_y, bracket_y - (y_range*0.02)], color='black', linewidth=1.4)
+#             ax.plot([1, 1], [bracket_y, bracket_y - (y_range*0.02)], color='black', linewidth=1.4)
+            
+#             ax.text(0.5, star_y, '***', ha='center', va='bottom', fontsize=plotConf["fig_fontsize"], fontweight='bold', color='black')
+            
+#             if p_val < 0.0001:
+#                 p_str = f"{p_val:.1e}"
+#             else:
+#                 p_str = f"{p_val:.4f}"
+            
+#             ax.text(0.5, text_y, p_str, ha='center', va='top', fontsize=plotConf["subplot_fontsize"], color='black', fontweight='bold')
+#         else:
+#             ax.text(0.5, bracket_y, 'ns', ha='center', va='bottom', fontsize=plotConf["subplot_fontsize"], color='gray', style='italic')
+
+#         # E. Formatting
+#         ax.set_title(f"d = {row['cohen_d']:.2f}", fontsize=plotConf["subplot_fontsize"], pad=12, fontweight='bold')
+#         ax.set_xlabel("")
+#         ax.set_ylabel("")
+#         ax.set_xticks([0, 1])
+#         ax.set_xticklabels([roi_a_name, roi_b_name], fontsize=plotConf["subplot_fontsize"], weight='bold')
+#         ax.tick_params(axis='y', labelsize=9, direction='in', length=6)
+#         ax.tick_params(axis='x', length=0)
+        
+#         ax.spines['top'].set_visible(False)
+#         ax.spines['right'].set_visible(False)
+#         ax.spines['bottom'].set_linewidth(1.2)
+#         ax.spines['left'].set_linewidth(1.2)
+        
+#         ax.grid(axis='y', linestyle='--', alpha=0.4, linewidth=0.8, zorder=0)
+
+#     # Hide empty subplots
+#     for j in range(n_tests, len(axes)):
+#         fig.delaxes(axes[j])
+
+#     # *~*~*~*~ Optionally save # TODO: saving not GOOD
+#     if c.save_fig:
+#         fig_name = f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_job-{c.jobName}_con-{c.con_name}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}.png"
+#         fig_path = c.out_2nd / fig_name
+#         plt.savefig(fig_path, dpi=plotConf["dpi"], bbox_inches = "tight")
+#         plt.close(fig)
+
+#     if c.show_fig:
+#         plt.show()

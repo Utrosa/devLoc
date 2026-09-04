@@ -100,9 +100,8 @@ def extract_roi_array(subID, sesID, acqID, atlas, space, res_path, rois, out_dir
     - out_dir: string, specifying the folder name for saving the results.
     - verbose: If True, prints affines and shape of atlas and result data in the terminal.
     - save: If True, saves the extracted roi arrays as a nifti files to disk.
-    - average_voxels: If True, averages values across voxels of the ROI. If False, extracts an
-                      array per voxel of the ROI.
- 
+    - average_voxels: If True, averages values across voxels of the ROI.
+
     Returns:
     - res_rois: dictionary, extracted value(s) per each ROI.
     - res_roi_paths: dictionary, paths to the extracted value(s) per each ROI.
@@ -165,11 +164,11 @@ def extract_roi_array(subID, sesID, acqID, atlas, space, res_path, rois, out_dir
             res_roi_paths[name] = result_path
             nib.save(nib.Nifti1Image(res_masked, res_affine), result_path)
 
-        # Save voxels values for plotting
-        if average_voxels: # Single value per ROI
-            res_rois[name] = np.mean(res_array)
+        # Append the extracted values for further analysis or visualization
+        if average_voxels: # Collapse voxels: returns an array of shape (n_runs,)
+            res_rois[name] = np.mean(res_array, axis=0)
 
-        else: # Single value per ROI's voxel
+        else: # Keep full data: (n_runs, n_voxels)
             res_rois[name] = res_array
 
     return res_rois, res_roi_paths, res_affine
@@ -258,14 +257,10 @@ def plot_violins_average(betas, subID, sessions, blocks, plot_rois, n_cols, out_
         # Only plot data for the selected regions
         if roi in plot_rois:
 
-            # Get data per condition (e.g.: timing deviancy magnitude)
-            for cond, beta_array in betas[roi].items():
-                if average_runs:  # TODO: CHECK CHECK CHECK
-                    for vals in beta_array: # TODO: CHECK CHECK CHECK
-                        rows.extend([{"ROI": roi, "cond": cond, "values": v} for v in vals.flatten()])
-                if average_voxels:  # TODO: CHECK CHECK CHECK
-                    rows.extend([{"ROI": roi, "cond": cond, "values": v} for v in beta_array])
-
+            # Iterate through each condition
+            for cond in betas[roi]:
+                rows.extend([{"ROI": roi, "cond": cond, "values": v} for v in betas[roi][cond][0]])
+        
         # Create a dataframe suitable for plotting      
         df = pd.DataFrame(rows)
 
@@ -294,7 +289,8 @@ def plot_violins_average(betas, subID, sessions, blocks, plot_rois, n_cols, out_
             legend = False,
             inner = "point", # Show individual observations
             palette = violins,
-            bw_adjust = 0.8
+            bw_adjust = 0.8,
+            cut=0 # Limit the violin within the data range!
         )
 
         ax.set_title(f"{roi}", fontsize = 12)
@@ -311,7 +307,7 @@ def plot_violins_average(betas, subID, sessions, blocks, plot_rois, n_cols, out_
 
     # Optionally save
     if save:
-        fig_name = f"sub-{subID:02d}_ses-{sessions}_block-{blocks}_space-{space}_violins.png"
+        fig_name = f"sub-{subID:02d}_ses-{sessions}_block-{blocks}_space-{space}_avgVox-{average_voxels}_avgRun-{average_runs}.png"
         fig_path = out_dir / fig_name
         plt.savefig(fig_path, dpi=300, bbox_inches="tight")
         plt.close(fig)
