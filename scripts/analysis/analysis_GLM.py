@@ -21,7 +21,7 @@ import grabber
 import config as c
 from objects import grab_objects
 from designs import timfreqDev
-from addNuisance import addNuisance
+from utils import addNuisance
 
 # -------------------------------------------------------------------------------------------------
 # 01. Specify helper nodes
