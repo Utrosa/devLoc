@@ -44,6 +44,7 @@ from pathlib import Path
 from datetime import datetime
 
 # Import custom-made functions (scripts)
+import config as c
 from scripts import grabber
 
 def filter_artifacts(homePath, mriPath, physioPath, subID, sesID, task, denoising, acqIDs, confound_keys, include_biopac=True):

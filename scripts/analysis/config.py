@@ -15,8 +15,8 @@ Configuration for the following scripts:
 import yaml
 import seaborn as sns
 from pathlib import Path
+from utils import get_base_dirs
 import matplotlib.pyplot as plt
-develop_mode = True # developping mode
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 02. Specify type of denoising in preproc, the 1st level analysis, 
@@ -25,8 +25,10 @@ develop_mode = True # developping mode
 # => suboptimal as it only captures responses to wide patterns (grouping)
 # J2: when11where (abs timDev vs freqDev)
 # => captures specialization to temporal scale
-denoising = True # NORDIC True or False
-jobName   = "whenwhat" # when11where
+develop_mode = True # developping mode
+denoising    = True # NORDIC True or False
+jobName      = "whenwhat" # when11where
+verbose      = False
 
 # Conditions have to be in the order of beta images
 # Please check the names in the SPM design matrix
@@ -51,7 +53,6 @@ volterra  = False
 smoothing = 2.5  # Set the Gaussian filter width in mm; defaults to None
 artDetect = True # Adds rapidart nipype node for motion detection
 if artDetect:
-
     # if using motion parameters for outlier detection
     rot_thresh = 0.3
     trans_thresh = 0.3
@@ -103,28 +104,17 @@ blocks = "1234" # appears in the filenames
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 05. Specify project directories
+# Core paths
 # homePath  = Path("/home/mutrosa/mutrosa/Documents/projects/devLoc") # Citrix
 homePath  = Path("/home/mutrosa/Documents/projects/devLoc")           # Local
-if develop_mode:
-    resultDir = homePath / "results"
-else:
-    resultDir = homePath / "tests"
+baseDir, workDir, outDir = get_base_dirs(homePath, develop_mode, jobName, denoising)
 
-# 1st Level analysis
-workDir  = resultDir / f"work-{jobName}" / f"NORDIC-{denoising}" # for intermediate outputs
-outDir   = resultDir / jobName / f"NORDIC-{denoising}"
-dataPath = outDir / "1stLevel"
-
-# Visualization 1st level and 2nd level analysis
+# Define derived paths
+dataPath  = outDir / "1stLevel"
 out_2nd   = outDir / "2ndLevel"
 out_1st   = dataPath / "visualization"
-spmt_out  = homePath / "results" / "visualization"
-
-# Create missing output directories
-outDir.mkdir(parents=True, exist_ok=True)
-out_2nd.mkdir(parents=True, exist_ok=True)
-out_1st.mkdir(parents=True, exist_ok=True)
-spmt_out.mkdir(parents=True, exist_ok=True)
+spmt_out  = baseDir / "visualization"
+atlasPath = homePath / "templates" / "resampled"
 
 # Preproc and filtered data paths
 mriPath  = homePath / "data_MRI" / "derivatives" / f"NORDIC-{denoising}" / "derivatives" # path to preproc outputs
@@ -132,6 +122,10 @@ anatPath = mriPath / f"sub-{subID:02d}" / f"ses-{anatID:02d}" / "anat"
 funcPath = mriPath / f"sub-{subID:02d}"
 freesurfer_dir = mriPath / "sourcedata" / "freesurfer" / f"sub-{subID:02d}_ses-{anatID:02d}" / "mri"
 artPath  = homePath / "data_physio" / "artifacts" / f"NORDIC-{denoising}"
+
+# Create missing directories
+for p in [outDir, out_2nd, out_1st, spmt_out, workDir]:
+    p.mkdir(parents=True, exist_ok=True)
 
 # Filenames and folders of the 1st level analysis output
 # The 1st level results have to be resampled prior to visualization
@@ -149,13 +143,12 @@ rois_subcortical = data["subcortical"]
 rois = data["cortical"] | data["subcortical"]
 
 # Get Sitek's subcortical atlas
-atlas_subcor_name = f"sub-invivo_resampled_to-{space}_sub-{subID:02d}_ses-{anatID:02d}.nii.gz"
-atlas_subcor_path = homePath / "templates" / atlas_subcor_name
+atlas_subcor_name = f"sub-invivo_sub-{subID:02d}_ses-{anatID:02d}_space-{space}.nii.gz"
+atlas_subcor_path = atlasPath / atlas_subcor_name
 
 # Get FreeSurfer's parcellation: Destrieux Atlas
-atlas_cor_name  = f"aparc.a2009s+aseg_NORDIC-{denoising}_space-{space}.nii.gz"
-atlasPath       = homePath / "templates"
-atlas_cor_path  = atlasPath / atlas_cor_name
+atlas_cor_name = f"aparc.a2009s+aseg_sub-{subID:02d}_ses-{anatID:02d}_NORDIC-{denoising}_space-{space}.nii.gz"
+atlas_cor_path = atlasPath / atlas_cor_name
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 07. Specify plotting style settings

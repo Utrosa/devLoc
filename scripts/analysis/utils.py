@@ -17,6 +17,13 @@ from nilearn.image import resample_to_img
 # Import custom-made functions
 import grabber
 
+def get_base_dirs(homePath, develop_mode, jobName, denoising):
+    """Returns the core result directories based on mode."""
+    base = homePath / ("results" if develop_mode else "tests")
+    work = base / f"work-{jobName}" / f"NORDIC-{denoising}"
+    out  = base / jobName / f"NORDIC-{denoising}"
+    return base, work, out
+
 def compare_img(original_img_path, template_img_path, resampled_img_path):
     """
     Compares three nifti images in shape, affines, and form.
@@ -46,9 +53,9 @@ def compare_img(original_img_path, template_img_path, resampled_img_path):
 
     print(
         f"""Affine comparison:
-    - Original image affine  : \n{original_affine}
-    - Resampled image affine : \n{resampled_affine}
-    - Template image affine  : \n{template_affine}
+    - Original image affine  : \n{original_affine}\n
+    - Resampled image affine : \n{resampled_affine}\n
+    - Template image affine  : \n{template_affine}\n
     """
     )
 
@@ -341,7 +348,9 @@ def resample_img(target, reference, output, method, interpolation, transform="")
         resampled_atlas = resample_to_img(
             input_img,
             reference_img,
-            interpolation
+            interpolation,
+            copy_header=True, # Copy the header of the input image to output image
+            force_resample=True
         )
         resampled_atlas.to_filename(output_path)
 
@@ -374,7 +383,7 @@ def resample_img(target, reference, output, method, interpolation, transform="")
             print("Erreur: antsApplyTransforms n'est pas trouvé dans le PATH.")
             return False
 
-def addNuisance(bunch, confounds_path, confounds_names):
+def add_nuisance(bunch, confounds_path, confounds_names):
     '''
     Parameters:
         bunch: a list with a Bunch object, created by parsing logfiles of the experimental task.
