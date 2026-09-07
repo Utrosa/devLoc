@@ -1,10 +1,11 @@
 #! /usr/bin/env python
-# Time-stamp: <04-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <07-09-2026 m.utrosa@bcbl.eu>
 """
 Configuration for the following scripts:
 - resample_atlas.py
 - res_contrasts.py
 - res_betas.py
+- res_spmT.py
 """
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 01. Activate python environment and import packages
@@ -14,6 +15,7 @@ import yaml
 import seaborn as sns
 from pathlib import Path
 import matplotlib.pyplot as plt
+develop_mode = True # developping mode
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 02. Specify type of denoising in preproc, the 1st level analysis, 
@@ -35,7 +37,46 @@ elif jobName == "when11where":
     conditions_int = list(range(1,12))
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 03. Specify data handling and plotting preferences
+# 03a. Specify 1st level analysis options
+contrast = True   # To estimate contrast or not?
+pooling  = True   # If True absolute timing deviancy regressors, if False nominal.
+binary   = False  # If True, magnitude of timing deviants is not taken into account.
+groups   = False  # If False, takes absolute or nominal timing deviants (11 vs 22)
+                  # {0 : "negative", 200 : "positive"}
+
+concat    = False # If False, treats runs as a single continuous series
+hrf_dervs = [0, 0]
+volterra  = False
+smoothing = 2.5  # Set the Gaussian filter width in mm; defaults to None
+artDetect = True # Adds rapidart nipype node for motion detection
+if artDetect:
+
+    # if using motion parameters for outlier detection
+    rot_thresh = 0.3
+    trans_thresh = 0.3
+
+# Physiological regressors
+tapas_cols = [f"RETROICOR_Cardiac_{i+1}" for i in range(6)] + \
+             [f"RETROICOR_Respiratory_{i+1}" for i in range(8)] + \
+             [f"RETROICOR_Multiplicative_{i+1}" for i in range(4)]
+
+# Contrast specification
+contrasts  = {
+    "whenwhat"  : [(
+        'whenwhat',
+        'T',
+        ['timDev', 'freqDev'],
+        [1, -1]
+    )],
+    "when11where" : [(
+        'when11where', 
+        'T',
+        ["4", "8", "13", "19", "27", "36", "48", "63", "80", "100", "125", "freqDev"], # regressors
+        [1/11, 1/11, 1/11, 1/11, 1/11, 1/11, 1/11, 1/11, 1/11, 1/11, 1/11, -1] # weights
+    )]
+}
+
+# 03b. Specify data handling and plotting preferences for 1st level results
 save_roi       = False  # applies to extracted ROI arrays
 show_fig       = True   # applies to figures with statistical results
 save_fig       = True   # applies to figures with statistical results
@@ -48,7 +89,8 @@ remove_empty   = False  # Remove or not empty arrays (e.g.: If we do not average
 					    # do we, when averaging across runs, include voxels that have zero 
 					    # beta values or not?)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 04. Specify experiment info
+# 04. Specify experiment design and MRI info
+subIDs = [5]
 subID  = 5
 anatID = 2
 space  = "T1w" #TODO: What is the differences between T1w and T1wFOV
@@ -62,11 +104,19 @@ blocks = "1234" # appears in the filenames
 # 05. Specify project directories
 # homePath  = Path("/home/mutrosa/mutrosa/Documents/projects/devLoc") # Citrix
 homePath  = Path("/home/mutrosa/Documents/projects/devLoc")           # Local
-dataDir   = homePath / "results" # path to 1st level analysis results
-dataPath  = dataDir / jobName / f"NORDIC-{denoising}" / "1stLevel"
-outDir    = homePath / "tests" / jobName / f"NORDIC-{denoising}"
+if develop_mode:
+    resultDir = homePath / "results"
+else:
+    resultDir = homePath / "tests"
+
+# 1st Level analysis
+workDir  = resultDir / f"work-{jobName}" / f"NORDIC-{denoising}" # for intermediate outputs
+outDir   = resultDir / jobName / f"NORDIC-{denoising}"
+dataPath = outDir / "1stLevel"
+
+# Visualization 1st level and 2nd level analysis
 out_2nd   = outDir / "2ndLevel"
-out_1st   = outDir / "1stLevel" / "visualization"
+out_1st   = dataPath / "visualization"
 spmt_out  = homePath / "results" / "visualization"
 
 # Create missing output directories
@@ -75,11 +125,12 @@ out_2nd.mkdir(parents=True, exist_ok=True)
 out_1st.mkdir(parents=True, exist_ok=True)
 spmt_out.mkdir(parents=True, exist_ok=True)
 
-# Raw data paths
-mriPath  = homePath / "data_MRI" / "derivatives" / f"NORDIC-{denoising}" / "derivatives" 
+# Preproc and filtered data paths
+mriPath  = homePath / "data_MRI" / "derivatives" / f"NORDIC-{denoising}" / "derivatives" # path to preproc outputs
 anatPath = mriPath / f"sub-{subID:02d}" / f"ses-{anatID:02d}" / "anat"
 funcPath = mriPath / f"sub-{subID:02d}"
 freesurfer_dir = mriPath / "sourcedata" / "freesurfer" / f"sub-{subID:02d}_ses-{anatID:02d}" / "mri"
+artPath  = homePath / "data_physio" / "artifacts" / f"NORDIC-{denoising}"
 
 # Filenames and folders of the 1st level analysis output
 # The 1st level results have to be resampled prior to visualization

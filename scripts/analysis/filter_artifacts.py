@@ -5,6 +5,7 @@ Select target artifacts (confounds and motion outliers) for inclusion as
 regressors (realignment parameters) in the first level data analysis.
 The artifacts are sourced from fMRIPrep derivatives (timeseries csv) and
 TAPAS Physio output.
+
 Note: fMRIPrep estimates confounds from a motion-corrected BOLD images, 
 brain mask, mcflirt movement parameters, and a segmentation (source software FSL).
 
@@ -24,10 +25,10 @@ Defaults confounds are:
 	- csf & wm: the average signal inside cerebrospinal fluid and white-matter masks across time.
 
 Optionally, adds physiological regressors, precomputed with TAPAS
-- respiration
-- heartbeat
-- 02
-- CO2
+	- respiration
+	- heartbeat
+	- 02
+	- CO2
 
 2. MOTION OUTLIERS
 Adding only columns for volumes with motion outliers.
