@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <31-08-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <07-09-2026 m.utrosa@bcbl.eu>
 """
 Extracting values from collected data within ROI masks from Sitek's atlas
 Plot a single violin plot per ROI, where the betas are an average from all
@@ -8,75 +8,128 @@ runs.
 Before running this script ensure that you have resampled the atlas
 correctly to the resolution of the functional images (ref: atlas_path)!
 """
-# WHY IS THIS NOT DONE FOR CORTICAL ROIS?
-# 00. Configuration -----------------------------------------------------------
-# Import custom-made scripts
-import grabber
+# CHECK: mask_paths[acqID] = mask_path
 import config as c
+import numpy as np
+import nibabel as nib
 from utils import extract_roi_array, plot_violins
 
-# 01. Extract data from ROIs --------------------------------------------------
-summed_contrasts = {name: [] for name in c.rois_subcortical.keys()}
-all_individual_paths = {}	
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 01. Extract data from ROIs
+# Initialize a dictionary to save extracted values
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+extracted_spmT = {acqID: {s: [] for s in c.sesIDs} for acqID in c.acqIDs}
+roi_names = list(c.rois.keys())
+all_individual_paths = {acqID: {s: [] for s in c.sesIDs} for acqID in c.acqIDs}
 
-for sesID in c.sesIDs:
-	for acqID in c.acqIDs:
+for acqID in c.acqIDs:
+	for sesID in c.sesIDs:
 
 		# Construct the path
-		name_spmT   = f"spmT_space-{c.space}_0001_trans_out.nii.gz"
-		folder_spmT = "_acqID_{acqID}_anatID_{c.anatID}_sesID_{sesID}_subID_{c.subID}"
-		spmT_path   = homePath / "results" / "1stLevel" / folder_spmT / name_spmT
+		spmT_fold = c.dataPath / f"sub-{c.subID:02d}" / f"ses-{sesID:02d}" / f"acq-{acqID}"
+		spmT_path = spmT_fold / c.spmT_filename
 
-		# Extract the data for current session			
-		masks, mask_path = extract_roi_array(c.subID, sesID, acqID, atlas_path, c.space, spmT_path, c.rois_subcortical, c.out_dir_spmt)
-		# CHECK: mask_paths[acqID] = mask_path
-		temp_img = nib.load(spmT_path)
-		last_affine = temp_img.affine
+		# Extract the subcortical arrays			
+		masks_subcor, mask_path_subcor, spmT_affine_subcor = extract_roi_array(
+			c.subID,
+			sesID, 
+			acqID, 
+			c.atlas_subcor_path, 
+			c.space, 
+			spmT_path, 
+			c.rois_subcortical, 
+			c.out_1st,
+			verbose=False,
+			save=c.save_roi,
+			average_voxels=False # Keeping this false for consistency
+		)
 
-		# Accumulate arrays for summation
-		for name in c.rois_subcortical.keys():
-			summed_contrasts[name].append(masks[name])
-			all_individual_paths[acqID] = mask_path
+		# Extract the cortical arrays
+		masks_cor,  mask_path_cor, spmT_affine_cor = extract_roi_array(
+			c.subID,
+			sesID, 
+			acqID, 
+			c.atlas_cor_path, 
+			c.space, 
+			spmT_path, 
+			c.rois_cortical, 
+			c.out_1st,
+			verbose=False,
+			save=c.save_roi,
+			average_voxels=False # Keeping this false for consistency
+		)
 
-# 02. Average -----------------------------------------------------------------
+		# Accumulate paths
+		mask_path_all = mask_path_cor | mask_path_subcor
+		all_individual_paths[acqID][sesID] = mask_path_all
+
+		# Assign affine
+		if spmT_affine_subcor.all() == spmT_affine_cor.all():
+			spmT_affine = spmT_affine_subcor
+
+		# Accumulate subcortical arrays for summation
+		masks_all = masks_cor | masks_subcor
+		extracted_spmT[acqID][sesID].append(masks_all)
+		for roi, mask_path_ind in mask_path_all.items():
+			if roi in c.rois_subcortical.keys():
+				nib.save(nib.Nifti1Image(masks_subcor[roi], spmT_affine), mask_path_ind)
+
+		# Accumulate cortical arrays for summation
+		for roi, mask_path_ind in mask_path_all.items():
+			if roi in c.rois_cortical.keys():
+				nib.save(nib.Nifti1Image(masks_cor[roi], spmT_affine), mask_path_ind)
+
+# Print shape of the raw extracted data
+print("\nAssuming all beta images have the same affine.")
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 02. Transform the extracted values.
+# Average across runs or voxels: (n_runs, n_voxels)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 final_spmT_rois = {}
 final_summed_paths = {}
-for name in rois_subcortical.keys():
-	array_list = summed_contrasts[name]
-	if len(array_list) > 0:
-		final_spmT_rois[name] = np.sum(array_list, axis=0)
+for acqID in c.acqIDs:
+	for sesID in c.sesIDs:
+		for name in c.rois.keys():
+			array_lists = extracted_spmT[acqID][sesID][0]
+			array_list  = array_lists[name]
 
-	     # Create filename for the summed result
-		summed_filename = f"sub-{subID:02d}_ses-sum_acq-sum_roi-{name}_space-{c.space}.nii.gz"
-		summed_path = Path(c.out_dir_spmt) / summed_filename
-		
-		# Save the summed array
-		if last_affine is not None:
-			nib.save(nib.Nifti1Image(final_spmT_rois[name], last_affine), summed_path)
-			final_summed_paths[name] = summed_path
+			if len(array_list) > 0:
 
-# 04. Plot per session --------------------------------------------------------
-mask_paths = {}
-mask_paths[c.acqIDs[0]] = final_summed_paths
-sesID = 234567 # all the sessions # TODO: this seems not too good ...
+				# Sum across sessions
+				final_spmT_rois[name] = np.sum(array_list, axis=0)
+
+				# Save the summed array
+				if spmT_affine is not None:
+					summed_filename = f"sub-{c.subID:02d}_ses-{c.sessions}_acq-{c.blocks}_roi-{name}_space-{c.space}.nii.gz"
+					summed_path = c.out_1st / summed_filename
+					final_summed_paths[name] = summed_path
+					nib.save(nib.Nifti1Image(final_spmT_rois[name], spmT_affine), summed_path)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 03. Descriptive plotting per acquisition (grouping across sessions)
+# TODO: summation across sessions but keeping acquisitions
+# TODO: averaging voxels
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Plotting non-summed, voxelwise data
 plot_violins(
-	mask_paths, 
+	all_individual_paths, 
 	c.subID, 
-	sesID, 
+	c.sessions, 
 	c.acqIDs, 
-	c.out_dir_spmt, 
+	c.out_1st, 
 	c.space, 
 	scale=True
 )
 
-mask_paths = all_individual_paths
-for sesID in c.sesIDs:
-	plot_violins(
-		mask_paths, 
-		c.subID, 
-		sesID, 
-		c.acqIDs, 
-		c.out_dir_spmt, 
-		c.space, 
-		scale=True
-	)
+# TODO: IMPROVE: Plotting summed (collapsing sessions & acquisitons), voxelwise data
+# summed_paths = {c.blocks: {c.sessions : final_summed_paths}}
+# plot_violins(
+# 	all_individual_paths, 
+# 	c.subID, 
+# 	c.sessions, 
+# 	c.acqIDs, 
+# 	c.out_1st, 
+# 	c.space, 
+# 	scale=True
+# )

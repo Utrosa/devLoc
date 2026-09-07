@@ -341,7 +341,7 @@ elif c.average_voxels:
     )
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 05a. Statistics Plot per RUN
+# 05a. Statistics Plot per RUN: what am I comparing here? against zero? paired?
 # TODO: Statistics Plot per VOXEL matrix
 if c.average_voxels:
 	sns.set_context("paper", font_scale=1.3)

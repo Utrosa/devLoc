@@ -157,11 +157,11 @@ def extract_roi_array(subID, sesID, acqID, atlas, space, res_path, rois, out_dir
             print(f"\nThere are {mask_size} voxels in the atlas for {name} region for result image:\n {res_path}")
 
         # Optionally save result as a zipped nifti file
+        res_masked = mask_data * res_data
+        result_filename = f"sub-{subID:02d}_ses-{sesID:02d}_acq-{acqID}_roi-{name}_space-{space}.nii.gz"
+        result_path = out_dir / result_filename
+        res_roi_paths[name] = result_path
         if save:
-            res_masked = mask_data * res_data
-            result_filename = f"sub-{subID:02d}_ses-{sesID:02d}_acq-{acqID}_roi-{name}_space-{space}.nii.gz"
-            result_path = out_dir / result_filename
-            res_roi_paths[name] = result_path
             nib.save(nib.Nifti1Image(res_masked, res_affine), result_path)
 
         # Append the extracted values for further analysis or visualization
@@ -176,16 +176,16 @@ def extract_roi_array(subID, sesID, acqID, atlas, space, res_path, rois, out_dir
 def plot_violins(mask_paths, subID, sesID, acqIDs, out_dir, space, scale):
 
     rows = []
-    for acq_name, roi_masks in mask_paths.items():
-        
-        for roi_name, roi_path in roi_masks.items():
-            mask_img = nib.load(roi_path)
-            vals = mask_img.get_fdata().flatten()
-            vals = vals[vals != 0]
-            if len(vals) < 5:
-                print(f"Warning: very few voxels for {roi_name}, {acq_name}")
-            rows.extend([{"ROI": roi_name, "acqID": acq_name, "values": v} for v in vals])
-        
+    for acq_name, acq_masks in mask_paths.items():
+        for ses_name, roi_masks in acq_masks.items():
+            for roi_name, roi_path in roi_masks.items():
+                mask_img = nib.load(roi_path)
+                vals = mask_img.get_fdata().flatten()
+                vals = vals[vals != 0]
+                if len(vals) < 5:
+                    print(f"Warning: very few voxels for {roi_name}, {acq_name}")
+                rows.extend([{"ROI": roi_name, "acqID": acq_name, "sesID": ses_name, "values": v} for v in vals])
+            
     df = pd.DataFrame(rows)
     print(df.head())
 
@@ -211,7 +211,6 @@ def plot_violins(mask_paths, subID, sesID, acqIDs, out_dir, space, scale):
                     palette = [color_map[acq]],
                     bw_adjust = 0.5
                 )
-
                 ax.set_title(f"{acq}", fontsize = 8)
                 ax.set_xlabel("")
             ax.set_xticks([])

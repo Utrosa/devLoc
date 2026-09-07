@@ -4,6 +4,7 @@
 Configuration for the following scripts:
 - resample_atlas.py
 - res_contrasts.py
+- res_betas.py
 """
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 01. Activate python environment and import packages
@@ -40,9 +41,9 @@ show_fig       = True   # applies to figures with statistical results
 save_fig       = True   # applies to figures with statistical results
 save_summed    = False  # applies to the contrasts images
 save_averaged  = False  # averaged beta arrays
-average_voxels = True  # CONTRASTS: If True, one value (array) across VOXELS.
+average_voxels = False  # CONTRASTS: If True, one value (array) across VOXELS.
                         # If both are False, the extracted roi array has shape (n_runs, n_voxels)
-average_runs   = False   # If True, collapse runs and return a mean across runs.                  
+average_runs   = True   # If True, collapse runs and return a mean across runs.                  
 remove_empty   = False  # Remove or not empty arrays (e.g.: If we do not average across voxels, 
 					    # do we, when averaging across runs, include voxels that have zero 
 					    # beta values or not?)
@@ -82,10 +83,10 @@ freesurfer_dir = mriPath / "sourcedata" / "freesurfer" / f"sub-{subID:02d}_ses-{
 
 # Filenames and folders of the 1st level analysis output
 # The 1st level results have to be resampled prior to visualization
-con_name = "timDev-freqDev"                 # contrast label
-con_filename  = "con_space-T1wFOV_0001.nii" # image
-beta_filename = "beta_space-T1wFOV"         # image
-spm_filename  = ""
+con_name = "timDev-freqDev"                    # contrast label
+con_filename   = "con_space-T1wFOV_0001.nii"   # image
+beta_filename  = "beta_space-T1wFOV"           # image
+spmT_filename  = "spmT_space-T1wFOV_0001.nii"  # image
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 06. Specify atlas and roi info
