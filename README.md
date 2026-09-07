@@ -66,7 +66,7 @@ Data are stored in 3 different folders, depending on their source (MRI scanner, 
    - [MNI template from Template Flow](https://www.templateflow.org/archive/)
 2. Run `python resample_atlas.py` to:
    - resample Sitek's in-vivo atlas to the resolution of the MNI template used in preprocessing and data analyses, and then to T1w native space (for subcortical ROIS)
-   - resample Freesurfer's reconall atlas to T1w native space (for cortical ROIS)
+   - resample Freesurfer's reconall atlas to T1w native and MNI spaces (for cortical ROIS)
 
 # CURRENTLY IN `DEVELOP MODE` FROM HERE
 

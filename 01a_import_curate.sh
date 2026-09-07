@@ -1,11 +1,8 @@
 #!/usr/bin/env bash
 # Time-stamp: <12-06-2026 m.utrosa@bcbl.eu>
-
 set -eo pipefail
 # -e => exits if any of the processes called generate a non-zero return code at the end.
 # -o pipefail => deals with failures in the middle of a pipeline.
-
-# Run the code in an environment specific to the project
 source activate localizer_fMRI
 
 # Subject-specific parameters
@@ -29,7 +26,8 @@ task="timDev"
 # will list them based on the acquisition label in alphabetical order.
 acqIDXs=("1" "2" "3" "4") # "BLOCK1" "BLOCK2" "BLOCK3" "BLOCK4" "FUNCLOC"
 
-homePath="/home/mutrosa/mutrosa/Documents/devLoc"
+# homePath="/home/mutrosa/mutrosa/Documents/projects/devLoc" # Citrix
+homePath="/home/mutrosa/Documents/projects/devLoc" # Local
 funcPath="$homePath/data_MRI/sourcedata/denoised"
 
 # Loop through the sessions

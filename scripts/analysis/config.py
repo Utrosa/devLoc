@@ -40,7 +40,27 @@ elif jobName == "when11where":
     conditions_int = list(range(1,12))
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 03a. Specify 1st level analysis options
+# 03a. Specify filtering artifacts options
+biopac = 1 # excludes (0) or includes (1) BIOPAC physiological regressors
+
+# Confounds
+# None will default to: trans, rot, csf, wm
+# confound_keys = [ 
+#     "csf", 
+#     "csf_derivative1", 
+#     "csf_derivative1_power2", 
+#     "csf_power2", 
+#     "white_matter", 
+#     "white_matter_derivative1", 
+#     "white_matter_derivative1_power2", 
+#     "white_matter_power2", 
+#     "csf_wm"
+# ]
+# The rigid body keys must be in order in which FSL expects them
+# https://fsl.fmrib.ox.ac.uk/fsl/docs/registration/mcflirt.html
+confound_keys = ['rot_x', 'rot_y', 'rot_z', 'trans_x', 'trans_y', 'trans_z']
+
+# 03b. Specify 1st level analysis options
 contrast = True   # To estimate contrast or not?
 pooling  = True   # If True absolute timing deviancy regressors, if False nominal.
 binary   = False  # If True, magnitude of timing deviants is not taken into account.
@@ -78,7 +98,7 @@ contrasts  = {
     )]
 }
 
-# 03b. Specify data handling and plotting preferences for 1st level results
+# 03c. Specify data handling and plotting preferences for 1st level results
 save_roi       = False  # applies to extracted ROI arrays
 show_fig       = True   # applies to figures with statistical results
 save_fig       = True   # applies to figures with statistical results
@@ -110,11 +130,12 @@ homePath  = Path("/home/mutrosa/Documents/projects/devLoc")           # Local
 baseDir, workDir, outDir = get_base_dirs(homePath, develop_mode, jobName, denoising)
 
 # Define derived paths
-dataPath  = outDir / "1stLevel"
-out_2nd   = outDir / "2ndLevel"
-out_1st   = dataPath / "visualization"
-spmt_out  = baseDir / "visualization"
-atlasPath = homePath / "templates" / "resampled"
+dataPath   = outDir / "1stLevel"
+out_2nd    = outDir / "2ndLevel"
+out_1st    = dataPath / "visualization"
+spmt_out   = baseDir / "visualization"
+atlasPath  = homePath / "templates" / "resampled"
+physioPath = homePath / "data_physio" / "raw"
 
 # Preproc and filtered data paths
 mriPath  = homePath / "data_MRI" / "derivatives" / f"NORDIC-{denoising}" / "derivatives" # path to preproc outputs
