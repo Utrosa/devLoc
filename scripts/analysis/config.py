@@ -3,6 +3,7 @@
 """
 Configuration for the following scripts:
 - resample_atlas.py
+- resample_outputs.py
 - res_contrasts.py
 - res_betas.py
 - res_spmT.py

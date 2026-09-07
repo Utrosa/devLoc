@@ -10,13 +10,11 @@ A. Resample Sitek's in-vivo atlas to the resolution of the MNI template used
 
 B. Resample Freesurfer's reconall atlas to T1w native space.
 
-C. Resample outputs from the 1st level analysis (beta images/t-values) from 
-   restricted FoV space of functional scans to native space of the T1w image.
-
 Prerequisites: 
 - install ANTs, nibabel, and nilearn
 - download Sitek's atlas and MNI template
 '''
+import shutil
 import config as c
 import subprocess
 from utils import resample_img, compare_img
@@ -49,65 +47,26 @@ if not sitek_T1w.exists():
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 02. Freesurfer's atlas: from fsnative to T1 native space --------------------
-freesurfer_orig = tempPath / f"aparc.a2009s+aseg_sub-{c.subID:02d}_ses-{c.anatID:02d}_NORDIC-{c.denoising}_space-fsnative.nii.gz"
-if not freesurfer_orig.exists():
-    # Transform to nifti with mri_convert command  
-    freesurfer_mgz = c.freesurfer_dir / "aparc.a2009s+aseg.mgz"
+# Find the freesurfer atlas and move it to templates
+# Note, recon-all will parcellate the individual subject’s brain according to 
+#   the Desikan-Killiany atlas (aparc+aseg.mgz), and
+#   the Destrieux atlas (aparc.a2009s+aseg.mgz; more parcellated).
+freesurfer_nii = tempPath / f"aparc.a2009s+aseg_sub-{c.subID:02d}_ses-{c.anatID:02d}_NORDIC-{c.denoising}_space-fsnative.nii.gz"
+freesurfer_mgz = c.freesurfer_dir / "aparc.a2009s+aseg.mgz"
+freesurfer_tmp = tempPath / freesurfer_mgz
+if not freesurfer_tmp.exists():
     if not freesurfer_mgz.exists():
-        raise FileNotFoundError(f"Freesurfer source file not found: {freesurfer_mgz}")
-    cmd = ["mri_convert", str(freesurfer_mgz), str(freesurfer_orig)]
+        raise FileNotFoundError(f"Freesurfer source file not found: {freesurfer_mgz}")    
+    shutil.copy2(freesurfer_mgz, freesurfer_tmp)
+
+# Use freesurfer's utility function https://surfer.nmr.mgh.harvard.edu/fswiki/mri_convert)
+# to covert the recon-all parcellation atlases from MGH to NifTi format.
+if not freesurfer_nii.exists():
+    cmd = ["mri_convert", str(freesurfer_tmp), str(freesurfer_nii)]
     subprocess.run(cmd, check=True, capture_output=True, text=True)
-    
+
 from_fsnative_to_T1w = c.anatPath / f"sub-{c.subID:02d}_ses-{c.anatID:02d}_from-fsnative_to-T1w_mode-image_xfm.txt"
 freesurfer_T1w = outAtlas / f"aparc.a2009s+aseg_sub-{c.subID:02d}_ses-{c.anatID:02d}_NORDIC-{c.denoising}_space-T1w.nii.gz"
 if not freesurfer_T1w.exists():
-    resample_img(freesurfer_orig, T1w, freesurfer_T1w, "ants", "NearestNeighbor", from_fsnative_to_T1w)
-    compare_img(freesurfer_orig, T1w, freesurfer_T1w)
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 03. Functional bold scans: from BOLDREF FOV to T1w FOV ----------------------
-# TODO: Is this necessary? The transformed file show a white square when opening with fsleyes
-for sesID in c.sesIDs:
-    for acqID in c.acqIDs:
-        func_orig = c.funcPath / f"ses-{sesID:02d}" / "func" / f"sub-{c.subID:02d}_ses-{sesID:02d}_task-{c.task}_acq-{acqID}_space-T1w_desc-preproc_bold.nii.gz"
-        from_boldref_to_T1w = c.funcPath / f"ses-{sesID:02d}" / "func" / f"sub-{c.subID:02d}_ses-{sesID:02d}_task-{c.task}_acq-{acqID}_from-boldref_to-T1w_mode-image_desc-coreg_xfm.txt"
-        func_T1FOV = c.funcPath / f"ses-{sesID:02d}" / "func" / f"sub-{c.subID:02d}_ses-{sesID:02d}_task-{c.task}_acq-{acqID}_space-T1wFOV_desc-preproc_bold.nii.gz"
-
-#         if not func_T1FOV.exists():
-#             resample_img(func_orig, T1w, func_T1FOV, "ants", "NearestNeighbor", from_boldref_to_T1w)
-#             compare_img(func_orig, T1w, func_T1FOV)
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 04. Beta, contrast, and spmT images: from BOLDREF FOV to T1w FOV ------------
-# TODO: Is this necessary? What does the shift achieve?
-for cond in c.conditions_int:
-    for sesID in c.sesIDs:
-        for acqID in c.acqIDs:
-
-            # All 1st-Level images are in the same folder and subject to the same transform
-            # TODO: What is the correct resampling reference image here? 
-            results_fold = c.data_1stLevel / f"sub-{c.subID:02d}" / f"ses-{sesID:02d}" / f"acq-{acqID}"
-            from_boldref_to_T1w = c.funcPath / f"ses-{sesID:02d}" / "func" / f"sub-{c.subID:02d}_ses-{sesID:02d}_task-{c.task}_acq-{acqID}_from-boldref_to-T1w_mode-image_desc-coreg_xfm.txt"
-
-            # Betas
-            beta_name =  f"beta_space-T1w_{cond:04d}.nii"
-            beta_orig = results_fold / beta_name
-            beta_T1FOV = results_fold / f"beta_space-T1wFOV_{cond:04d}.nii"
-
-            # if not beta_T1FOV.exists():
-                # resample_img(beta_orig, T1w, beta_T1FOV, "ants", "NearestNeighbor", from_boldref_to_T1w)
-                # compare_img(beta_orig, T1w, beta_T1FOV)
-                # subprocess.run(["freeview", str(beta_orig), str(T1w), str(beta_T1FOV)])
-           
-            # Contrasts 
-            con_name =  "con_space-boldref_0001.nii"
-            con_orig = results_fold / con_name
-            con_T1FOV = results_fold / "con_space-T1wFOV_0001.nii"
-            # TODO: add transform code 
-            
-            # SPM t-images 
-            # TODO: check if the name is correct 
-            spmt_name =  "spmt_space-boldref_0001.nii"
-            spmt_orig = results_fold / spmt_name
-            spmt_T1FOV = results_fold / "spmt_space-T1wFOV_0001.nii"
-            # TODO: add transform code 
+    resample_img(freesurfer_nii, T1w, freesurfer_T1w, "ants", "NearestNeighbor", from_fsnative_to_T1w)
+    compare_img(freesurfer_nii, T1w, freesurfer_T1w)
