@@ -10,6 +10,7 @@ https://nipype.readthedocs.io/en/latest/users/examples/fmri_nipy_glm.html
 from pathlib import Path
 from nipype.algorithms.misc import Gunzip
 from nipype.interfaces.io import DataSink
+from nipype.interfaces.base import Undefined # for rapidart
 from nipype import Workflow, Function, IdentityInterface
 import nipype.interfaces.spm as spm  # spm
 import nipype.pipeline.engine as pe  # pypeline engine
@@ -108,21 +109,25 @@ if c.smoothing:
     smoother.inputs.fwhm = c.smoothing # TODO: Check whether this has to be a list?  
 
 if c.artDetect:
-    # Using intensity and motion parameters to infer parameters
+    # Using intensity and motion parameters to infer outliers from functional images
     # https://nipype.readthedocs.io/en/latest/api/generated/nipype.algorithms.rapidart.html
+    # https://github.com/nipy/nipype/blob/master/nipype/algorithms/rapidart.py
     art_detect = pe.Node(
-        ArtifactDetect(), # performs artifact detection on functional images
+        ArtifactDetect(),
         name = "art_detect"
     )
     art_detect.inputs.parameter_source = "FSL" # fMRIPrep uses FSL MCFLIRT to estimate confounds
-    art_detect.inputs.mask_type = "file"
+    art_detect.inputs.mask_type = "file" # specifies a brain mask file
     art_detect.inputs.save_plot = True # Save plots containing outliers
-
-    # art_detect.inputs.norm_threshold = 1 # Default from documentation's example
-    # art_detect.inputs.zintensity_threshold = 3 # Default from documentation's example
-    art_detect.inputs.rotation_threxxxxshold    = c.rot_thresh
-    art_detect.inputs.translation_threshold = c.trans_thresh
-
+    art_detect.inputs.zintensity_threshold  = 3 # Defaults to 3 and mandatory input
+    art_detect.inputs.rotation_threshold    = c.rot_thresh   # exclusive with norm_threshold
+    art_detect.inputs.translation_threshold = c.trans_thresh # exclusive with norm_threshold
+    # art_detect.inputs.norm_threshold = 1 # Defaults to 1
+    art_detect.inputs.use_norm = Undefined 
+    # If norm_threshold is set, has to be True (default).
+    # If True, it computes the movement of the center of each face a cuboid centered
+    # around the head and returns the maximal movement across the centers. 
+   
     # Deterimne which differences to use for outlier detection: Motion and Intensity parameters
     art_detect.inputs.use_differences = [True, False]
 
@@ -131,7 +136,7 @@ if c.artDetect:
 # -------------------------------------------------------------------------------------------------
 # Get the information about the experimental paradigm to create an SPM design matrix.
 # Construct a list of objects (each object should contain data for all runs of that session)
-# Create a Bunch object by parsing all event files: timDev & freqDev are separate Bunch objects.
+# Create a Bunch object by parsing all event files: timDev & freqDev are separx<wate Bunch objects.
 bunch_log = pe.Node(
     Function(
         input_names = ["time_log", "time_groups", "time_pool", "time_binary"],
@@ -211,7 +216,7 @@ timDev22.connect([(infosource, infohandle, [
 	("acqID", "acqID")
     ])])
 
-# Ñarse the logfiles into bunches
+# Parse the logfiles into bunches
 timDev22.connect([
     (infohandle, bunch_log, [("log_path", "time_log")]),
     (infohandle, bunch_reg, [("reg_path", "confounds_path")]) # reg_path: only exists when including BIOPAC

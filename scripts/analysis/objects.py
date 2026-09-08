@@ -62,7 +62,7 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		out_conf  = grabber.define_grabconf(subID, sesID, "outliers",  "txt", acquisition = acqID, run = runID)
 		T1w_conf  = grabber.define_grabconf(subID, anatID, "T1w",  "nii.gz")
 		T1w_to_MNI_conf = grabber.define_grabconf(subID, anatID, "xfm",  "h5")
-		boldref_to_T1w_conf  = grabber.define_grabconf(subID, anatID, "xfm",  "txt")
+		boldref_to_T1w_conf  = grabber.define_grabconf(subID, anatID, "xfm",  "txt", acquisition = acqID)
 
 		# -------------- 03 Grabbing files --------------
 		log_object  = grabber.grab_BIDS_object(logpath, logLayout, log_conf)
@@ -128,30 +128,48 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		# Warnings for T1 and transform files
 		if len(T1w_object) > 1:
 			warnings.warn(
-				"Multiple anatomical files found. Taking the first one."
+				"Multiple anatomical files found: "
+				f"{[f'{Path(to).name}' for to in T1w_object]}\n"
 			)
 		if len(orig_to_boldref_object) > 1 or len(boldref_to_T1w_object) > 1:
 			warnings.warn(
-                "Multiple transformation files found. Assuming alphabetical order: "
-                "orig_to_boldref is the second file, boldref_to_T1w is the first. "
-                f"Found: orig={orig_to_boldref_object}, boldref={boldref_to_T1w_object}"
+                "Multiple transformation files found: "
+                f"\n * orig_to_boldref: {[f'{Path(otbo).name}' for otbo in orig_to_boldref_object]}\n "
+                f"\n * boldref_to_T1w: {[f'{Path(btto).name}' for btto in boldref_to_T1w_object]}"
             )
 		
 		# -------------- 05 Grabing filepaths and Updating --------------
-		log_path    = log_object[0].path
-		bold_path   = bold_object[0].path
-		mask_path   = mask_object[0].path
-		conf_path   = conf_object[0].path # selected confounds
+		log_path        = log_object[0].path
+		bold_path       = bold_object[0].path
+		mask_path       = mask_object[0].path
+		conf_path       = conf_object[0].path # selected confounds
+		movpar_path     = movpar_object[0].path
+		out_path        = out_object[0].path  # motion outliers as detected by fMRIPrep
+		T1w_to_MNI_path = T1w_to_MNI_object[1].path
+
+		# Print the anatomical file used
+		T1w_path = T1w_object[0].path
+		print(
+			f"\nThe selected space for the analysis is: {space}. "
+			f"\nThe anatomical file selected is: {Path(T1w_object[0]).name}."
+		)
+		
+		# Regressors tsv file only exists when including BIOPAC regressors
 		if len(reg_object) == 1:
-			reg_path = reg_object[0].path  # only exists when including BIOPAC
+			reg_path = reg_object[0].path
 		else:
 			reg_path = []
-		movpar_path = movpar_object[0].path
-		out_path    = out_object[0].path  # motion outliers as detected by fMRIPrep
-		T1w_path    = T1w_object[0].path
-		T1w_to_MNI_path      = T1w_to_MNI_object[1].path
-		orig_to_boldref_path = orig_to_boldref_object[1].path
-		boldref_to_T1w_path  = boldref_to_T1w_object[0].path
+
+		# Take the correct transformation file
+		for otbo in orig_to_boldref_object:
+			if "from-orig_to-boldref" in str(otbo):
+				orig_to_boldref_path = otbo.path
+				print(f"\n For from-orig_to-boldref selected: {Path(otbo).name}")
+
+		for btto in boldref_to_T1w_object:
+			if "from-boldref_to-T1w" in str(btto):
+				boldref_to_T1w_path = btto.path
+				print(f"\n For from-boldref_to-T1w selected: {Path(otbo).name}")
 
 		# Extract repetition time with PyBIDS methods [sec]
 		TR = bold_object[0].get_metadata()['RepetitionTime']
@@ -178,7 +196,7 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		out_conf  = grabber.define_grabconf(subID, sesID, "outliers",  "txt", acquisition = acqID)
 		T1w_conf  = grabber.define_grabconf(subID, anatID, "T1w",  "nii.gz")
 		T1w_to_MNI_conf = grabber.define_grabconf(subID, anatID, "xfm",  "h5")
-		boldref_to_T1w_conf  = grabber.define_grabconf(subID, anatID, "xfm",  "txt")
+		boldref_to_T1w_conf  = grabber.define_grabconf(subID, anatID, "xfm",  "txt", acquisition = acqID)
 
 		# -------------- 03 Grabbing files --------------
 		log_object   = grabber.grab_BIDS_object(logpath, logLayout, log_conf)
@@ -244,30 +262,48 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		# Warnings for T1 and transform files
 		if len(T1w_object) > 1:
 			warnings.warn(
-				"Multiple anatomical files found. Taking the first one."
+				"Multiple anatomical files found: "
+				f"{[f'{Path(to).name}' for to in T1w_object]}"
 			)
 		if len(orig_to_boldref_object) > 1 or len(boldref_to_T1w_object) > 1:
 			warnings.warn(
-                "Multiple transformation files found. Assuming alphabetical order: "
-                "orig_to_boldref is the second file, boldref_to_T1w is the first. "
-                f"Found: orig={orig_to_boldref_object}, boldref={boldref_to_T1w_object}"
+                "Multiple transformation files found: "
+                f"\n * orig_to_boldref: {[f'{Path(otbo).name}' for otbo in orig_to_boldref_object]}\n "
+                f"\n * boldref_to_T1w: {[f'{Path(btto).name}' for btto in boldref_to_T1w_object]}"
             )
 		
 		# -------------- 05 Grabing filepaths and Updating --------------
-		log_path  = log_object[0].path
-		bold_path = bold_object[0].path
-		mask_path = mask_object[0].path
-		conf_path = conf_object[0].path # selected confonuds
+		log_path        = log_object[0].path
+		bold_path       = bold_object[0].path
+		mask_path       = mask_object[0].path
+		conf_path       = conf_object[0].path # selected confonuds
+		movpar_path     = movpar_object[0].path # only the trans & rot parameters
+		out_path        = out_object[0].path    # motion outliers as detected by fMRIPrep
+		T1w_to_MNI_path = T1w_to_MNI_object[1].path
+
+		# Print the anatomical file used
+		T1w_path = T1w_object[0].path
+		print(
+			f"\nThe selected space for the analysis is: {space}. "
+			f"\nThe anatomical file selected is: {Path(T1w_object[0]).name}."
+		)
+
+		# Regressors tsv file only exists when including BIOPAC regressors
 		if len(reg_object) == 1:
-			reg_path = reg_object[0].path  # only exists when including BIOPAC
+			reg_path = reg_object[0].path
 		else:
 			reg_path = []
-		movpar_path = movpar_object[0].path # only the trans & rot parameters
-		out_path    = out_object[0].path    # motion outliers as detected by fMRIPrep
-		T1w_path    = T1w_object[0].path
-		T1w_to_MNI_path      = T1w_to_MNI_object[1].path
-		orig_to_boldref_path = orig_to_boldref_object[1].path
-		boldref_to_T1w_path  = boldref_to_T1w_object[0].path
+		
+		# Take the correct transformation file
+		for otbo in orig_to_boldref_object:
+			if "from-orig_to-boldref" in str(otbo):
+				orig_to_boldref_path = otbo.path
+				print(f"\n For from-orig_to-boldref selected: {Path(otbo).name}")
+
+		for btto in boldref_to_T1w_object:
+			if "from-boldref_to-T1w" in str(btto):
+				boldref_to_T1w_path = btto.path
+				print(f"\n For from-boldref_to-T1w selected: {Path(otbo).name}")
 
 		# Extract repetition time with PyBIDS methods [sec]
 		TR = bold_object[0].get_metadata()['RepetitionTime']
