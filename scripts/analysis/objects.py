@@ -49,14 +49,14 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		# -------------- 01 Set up layouts -------------- 
 		logpath   = homePath / "data_logs" / "bids"
 		logLayout = bids.layout.BIDSLayout(logpath, validate=False)
-		mriLayout = bids.layout.BIDSLayout(mriPath, validate=False, derivatives=True)
+		mriLayout = bids.layout.BIDSLayout(mriPath, validate=False)
 		artLayout = bids.layout.BIDSLayout(artPath, validate=False)
 		
 		# -------------- 02 Configuration -------------- 
 		log_conf  = grabber.define_grabconf(subID, sesID, "events", "tsv", task = task, acquisition = acqID, run = runID)
 		bold_conf = grabber.define_grabconf(subID, sesID, "bold", "nii.gz", task = task, acquisition = acqID, run = runID, space = space)
 		mask_conf = grabber.define_grabconf(subID, sesID, "mask", "nii.gz", task = task, acquisition = acqID, run = runID, space = space)
-		conf_conf  = grabber.define_grabconf(subID, sesID, "confounds", "tsv", acquisition = acqID, run = runID)	
+		conf_conf  = grabber.define_grabconf(subID, sesID, "confounds", "txt", acquisition = acqID, run = runID)	
 		reg_conf = grabber.define_grabconf(subID, sesID, "regressors", "tsv", acquisition = acqID, run = runID)
 		movpar_conf = grabber.define_grabconf(subID, sesID, "movpar", "txt", acquisition = acqID, run = runID)
 		out_conf  = grabber.define_grabconf(subID, sesID, "outliers",  "txt", acquisition = acqID, run = runID)
@@ -78,7 +78,6 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		boldref_to_T1w_object  = grabber.grab_BIDS_object(mriPath, mriLayout, boldref_to_T1w_conf)
 
 		# -------------- 04 Verification & Warnings --------------
-		        
 		# Check for missing files
 		if len(log_object) == 0:
 			raise ValueError(f"No log file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}, run-{runID:02d}.")
@@ -166,14 +165,14 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		# -------------- 01 Set up layouts -------------- 
 		logpath   = homePath / "data_logs" / "bids"
 		logLayout = bids.layout.BIDSLayout(logpath, validate=False)
-		mriLayout = bids.layout.BIDSLayout(mriPath, validate=False, derivatives=True)
+		mriLayout = bids.layout.BIDSLayout(mriPath, validate=False)
 		artLayout = bids.layout.BIDSLayout(artPath, validate=False)
 		
 		# -------------- 02 Configuration -------------- 
 		log_conf  = grabber.define_grabconf(subID, sesID, "events", "tsv", task = task, acquisition = acqID)
 		bold_conf = grabber.define_grabconf(subID, sesID, "bold", "nii.gz", task = task, acquisition = acqID, space = space)
 		mask_conf = grabber.define_grabconf(subID, sesID, "mask", "nii.gz", task = task, acquisition = acqID, space = space)
-		conf_conf = grabber.define_grabconf(subID, sesID, "confounds", "tsv", acquisition = acqID)	
+		conf_conf = grabber.define_grabconf(subID, sesID, "confounds", "txt", acquisition = acqID)	
 		reg_conf  = grabber.define_grabconf(subID, sesID, "regressors", "tsv", acquisition = acqID)
 		movpar_conf = grabber.define_grabconf(subID, sesID, "movpar", "txt", acquisition = acqID)
 		out_conf  = grabber.define_grabconf(subID, sesID, "outliers",  "txt", acquisition = acqID)
@@ -185,8 +184,8 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		log_object   = grabber.grab_BIDS_object(logpath, logLayout, log_conf)
 		bold_object  = grabber.grab_BIDS_object(mriPath, mriLayout, bold_conf)
 		mask_object  = grabber.grab_BIDS_object(mriPath, mriLayout, mask_conf)
-		conf_object  = grabber.grab_BIDS_object(artPath, artLayout, conf_conf)  # selected confounds
-		reg_object   = grabber.grab_BIDS_object(artPath, artLayout, reg_conf)   # only BIOPAC
+		conf_object  = grabber.grab_BIDS_object(artPath, artLayout, conf_conf)    # selected confounds
+		reg_object   = grabber.grab_BIDS_object(artPath, artLayout, reg_conf)     # only BIOPAC
 		movpar_object = grabber.grab_BIDS_object(artPath, artLayout, movpar_conf) # only the trans & rot parameters
 		out_object    = grabber.grab_BIDS_object(artPath, artLayout, out_conf)    # motion outliers as detected by fMRIPrep
 		T1w_object    = grabber.grab_BIDS_object(mriPath, mriLayout, T1w_conf)

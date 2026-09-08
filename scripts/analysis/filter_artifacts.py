@@ -69,15 +69,13 @@ def filter_artifacts(homePath, mriPath, physioPath, subID, sesID, task, denoisin
 	    - txt with motion outliers values (no header)
 		- txt with motion params (no header)
 	    - md summary file including column names of selected artifacts
-
     '''
-
 	# 00. ---------- Preliminaries ---------- 
 	# Define input paths
 	homePath = Path(homePath)
 	MRILayout = bids.layout.BIDSLayout(mriPath, validate=False, derivatives=True)
 	
-	# Just a check
+	# # Just a check
 	if denoising not in str(mriPath):
 		raise ValueError("Are you working on denoised data or not?")
 
@@ -164,6 +162,15 @@ def filter_artifacts(homePath, mriPath, physioPath, subID, sesID, task, denoisin
 				df_final = df_selected.join(df_regressors)
 				df_final = df_final.fillna(0)
 
+				# Move BIOPAC regressors file to artifacts folder
+				reg_conf   = grabber.define_grabconf(subID, sesID, "regressors", "tsv", acquisition=acqID)
+				reg_object = grabber.grab_BIDS_object(physioPath, physioLayout, reg_conf) 
+				reg_path   = reg_object[0].path
+				regPath    = Path(reg_path)
+				dest_path  = outputPath / regPath.name
+				shutil.copy2(str(regPath), str(dest_path))
+				print(f"Moved: {reg_path} -> {dest_path}")
+
 			else:
 				print("\nNot adding physiological confounds from TAPAS/BIOPAC.\n")
 				df_final = df_selected
@@ -214,18 +221,6 @@ def filter_artifacts(homePath, mriPath, physioPath, subID, sesID, task, denoisin
 		f.write(f"- Acquisitions: {acqIDs}\n")
 		f.write(f"- Confounds: {confounds} + BIOPAC {include_biopac}\n")
 		f.write(f"- Motion Outliers: {outlier_columns}\n")
-
-	# 03. ---------- Move BIOPAC regressors file to artifacts folder ---------- 
-	## Grab the file
-	reg_conf   = grabber.define_grabconf(subID, sesID, "regressors", "tsv", acquisition=acqID)
-	reg_object = grabber.grab_BIDS_object(physioPath, physioLayout, reg_conf) 
-	reg_path   = reg_object[0].path
-	regPath    = Path(reg_path)
-
-	## Move it
-	dest_path = outputPath / regPath.name
-	shutil.copy2(str(regPath), str(dest_path))
-	print(f"Moved: {reg_path} -> {dest_path}")
 
 if __name__ == "__main__":
 	parser = argparse.ArgumentParser()

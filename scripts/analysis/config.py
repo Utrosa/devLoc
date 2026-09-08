@@ -7,6 +7,7 @@ Configuration for the following scripts:
 - res_contrasts.py
 - res_betas.py
 - res_spmT.py
+- analysis_task-timDev.py
 """
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 01. Activate python environment and import packages
@@ -117,7 +118,7 @@ subID  = 5
 anatID = 2
 space  = "T1w" #TODO: What is the differences between T1w and T1wFOV
 task   = "timDev"
-sesIDs = [2, 3, 4, 5, 6, 7] # 2, 3, 4, 5, 6, 7
+sesIDs = [2] # 2, 3, 4, 5, 6, 7
 sessions = 234567 # appears in the filenames
 acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC" 
 blocks = "1234" # appears in the filenames

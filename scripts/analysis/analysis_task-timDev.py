@@ -103,11 +103,11 @@ infohandle.inputs.run      = False # TODO: check this?
 # -------------------------------------------------------------------------------------------------
 # 02. Additional preprocessing nodes: smoothing and outlier detection
 # -------------------------------------------------------------------------------------------------
-if smoothing:
-    smooth = pe.Node(interface=spm.Smooth(), name="smooth")
-    smooth.inputs.fwhm = smoothing # TODO: Check whether this has to be a list?  
+if c.smoothing:
+    smoother = pe.Node(interface=spm.Smooth(), name="smoother")
+    smoother.inputs.fwhm = c.smoothing # TODO: Check whether this has to be a list?  
 
-if artDetect:
+if c.artDetect:
     # Using intensity and motion parameters to infer parameters
     # https://nipype.readthedocs.io/en/latest/api/generated/nipype.algorithms.rapidart.html
     art_detect = pe.Node(
@@ -149,7 +149,7 @@ bunch_reg = pe.Node(
     Function(
         input_names = ["bunch", "confounds_path", "confounds_names"],
         output_names = ["design_bunch"],
-        function = addNuisance
+        function = add_nuisance
     ),
     name = "bunch_reg"
 )
@@ -201,7 +201,7 @@ if c.contrast:
 # -------------------------------------------------------------------------------------------------
 # 04. Connect the Nodes: Determine the Flow of Data
 # -------------------------------------------------------------------------------------------------
-timDev22 = Workflow(name = "level1")
+timDev22 = Workflow(name = "l1_timDev")
 timDev22.base_dir = str(c.workDir)
 
 # Specify how the analysis iterates through the data
@@ -223,38 +223,34 @@ timDev22.connect([
 
 timDev22.connect([(infohandle, unzip, [("bold_path", "in_file")])])
 
-# Estimate motion outliers
-timDev22.connect([
-    (infohandle, art_detect, [
-        ("mask_path", "mask_file"),
-        ("movpar_path", "realignment_parameters"),
-        ("bold_path", "realigned_files")
-    ])
-])
-
 # Model specs
-if smoothing is not None:
+if c.smoothing is not None:
     timDev22.connect([
-        (unzip, smooth, [("out_file", "in_files")]),
-        (smooth, modeler, [("smoothed_files", "functional_runs")])
+        (unzip, smoother, [("out_file", "in_files")]),
+        (smoother, modeler, [("smoothed_files", "functional_runs")])
     ])
 else:
     timDev22.connect([
         (unzip, modeler, [("out_file", "functional_runs")])
     ])
 
-if artDetect:
-    timDev22.connect([
-        (art_detect, modeler, [("outlier_files", "outlier_files")]),
-        (infohandle, modeler, [
-                ("out_path", "outlier_files"),
-                ("movpar_path", "realignment_parameters"), # add only trans & rot
-                ("TR", "time_repetition")
-        ]),
-        (bunch_reg, modeler, [("design_bunch", "subject_info")])
-    ])
+if c.artDetect:
+    # Estimate motion outliers
+    timDev22.connect([(infohandle, art_detect, [
+            ("mask_path", "mask_file"),
+            ("movpar_path", "realignment_parameters"),
+            ("bold_path", "realigned_files")])])
+
+    # Connect to modeler
+    timDev22.connect([(art_detect, modeler, [("outlier_files", "outlier_files")])])
 else:
     timDev22.connect([
+        (infohandle, modeler, [
+            ("out_path", "outlier_files"),
+            ("conf_path", "realignment_parameters")])])
+
+# Connect to modeler
+timDev22.connect([
     (infohandle, modeler, [("TR", "time_repetition")]),
     (bunch_reg, modeler, [("design_bunch", "subject_info")])
 ])
@@ -262,8 +258,7 @@ else:
 # Design the matrix
 timDev22.connect([
     (modeler, designer, [("session_info", "session_info")]),
-    (infohandle, designer, [("TR", "interscan_interval")])
-])
+    (infohandle, designer, [("TR", "interscan_interval")])])
 
 # Estimate
 timDev22.connect([(designer, estimator, [("spm_mat_file", "spm_mat_file")])])
@@ -272,8 +267,7 @@ timDev22.connect([(designer, estimator, [("spm_mat_file", "spm_mat_file")])])
 timDev22.connect([
 				(estimator, contrastor, [("spm_mat_file", "spm_mat_file")]),
 				(estimator, contrastor, [("beta_images", "beta_images")]),
-				(estimator, contrastor, [("residual_image", "residual_image")]),
-				])
+				(estimator, contrastor, [("residual_image", "residual_image")])])
 
 # Save files
 timDev22.connect([
