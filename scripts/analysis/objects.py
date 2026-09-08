@@ -90,7 +90,7 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		if len(conf_object) == 0:
 			raise ValueError(f"No confounds file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}, run-{runID:02d}.")
 		if len(reg_object) == 0:
-			raise ValueError(f"No TAPAS regressors file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}, run-{runID:02d}.")
+			warnings.warn(f"No TAPAS regressors file found for sub-{subID:02d}, ses-{sesID:02d}, acq-{acqID}, run-{runID:02d}.")
 		if len(movpar_object) == 0:
 			raise ValueError(f"No movement parameters file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}.")
 		if len(out_object) == 0:
@@ -106,21 +106,18 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 				f"Found more than one file:\n{log_object}."
 				"\nCheck your LOG folder and logfile import steps."
 				)
-		
 		if len(bold_object) > 1 or len(mask_object) > 1:
 			raise ValueError(
 				"Found more than one file in one of the following\n:"
 				f"{bold_object}, or\n {mask_object}."
 				"\nPlease check your MRI folder and MRI data import steps."
 				)
-
 		if len(conf_object) > 1 or len(movpar_object) > 1 or len(out_object) > 1:
 			raise ValueError(
 				"Found more than one file in one of the following\n:"
 				f"{conf_object},\n {movpar_object}, or\n{out_object}."
 				"Check your PHYSIO folder and physiological data import steps."
 				)
-	
 		if len(reg_object) > 1:
 			raise ValueError(
 				"Found more than one file in one of the following\n:"
@@ -145,7 +142,10 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		bold_path   = bold_object[0].path
 		mask_path   = mask_object[0].path
 		conf_path   = conf_object[0].path # selected confounds
-		reg_path    = reg_object[0].path  # only BIOPAC
+		if len(reg_object) == 1:
+			reg_path = reg_object[0].path  # only exists when including BIOPAC
+		else:
+			reg_path = []
 		movpar_path = movpar_object[0].path
 		out_path    = out_object[0].path  # motion outliers as detected by fMRIPrep
 		T1w_path    = T1w_object[0].path
@@ -206,7 +206,7 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		if len(conf_object) == 0:
 			raise ValueError(f"No confounds file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}.")
 		if len(reg_object) == 0:
-			raise ValueError(f"No TAPAS regressors file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}.")
+			warnings.warn(f"No TAPAS regressors file found for sub-{subID:02d}, ses-{sesID:02d}, acq-{acqID}.")
 		if len(movpar_object) == 0:
 			raise ValueError(f"No movement parameters file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}.")
 		if len(out_object) == 0:
@@ -222,21 +222,18 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 				f"Found more than one file:\n{log_object}."
 				"\nCheck your LOG folder and logfile import steps."
 				)
-		
 		if len(bold_object) > 1 or len(mask_object) > 1:
 			raise ValueError(
 				"Found more than one file in one of the following\n:"
 				f"{bold_object}, or\n {mask_object}."
 				"\n\nPlease check your MRI folder and MRI data import steps."
 				)
-
 		if len(conf_object) > 1 or len(movpar_object) > 1 or len(out_object) > 1:
 			raise ValueError(
 				"Found more than one file in one of the following\n:"
 				f"{conf_object},\n{movpar_object}, or\n{out_object}."
 				"Check your PHYSIO folder and physiological data import steps."
 				)
-		
 		if len(reg_object) > 1:
 			raise ValueError(
 				"Found more than one file in one of the following\n:"
@@ -261,7 +258,10 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		bold_path = bold_object[0].path
 		mask_path = mask_object[0].path
 		conf_path = conf_object[0].path # selected confonuds
-		reg_path  = reg_object[0].path  # only BIOPAC
+		if len(reg_object) == 1:
+			reg_path = reg_object[0].path  # only exists when including BIOPAC
+		else:
+			reg_path = []
 		movpar_path = movpar_object[0].path # only the trans & rot parameters
 		out_path    = out_object[0].path    # motion outliers as detected by fMRIPrep
 		T1w_path    = T1w_object[0].path

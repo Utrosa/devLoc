@@ -80,7 +80,7 @@ infohandle = pe.Node(
             "bold_path", 
             "mask_path", 
             "conf_path",
-            "reg_path",
+            "reg_path", # empty list (no path to a regressors file) if BIOPAC off (no TAPAS)
             "movpar_path",
             "out_path", 
             "T1w_path", 
@@ -120,7 +120,7 @@ if c.artDetect:
 
     # art_detect.inputs.norm_threshold = 1 # Default from documentation's example
     # art_detect.inputs.zintensity_threshold = 3 # Default from documentation's example
-    art_detect.inputs.rotation_threshold    = c.rot_thresh
+    art_detect.inputs.rotation_threxxxxshold    = c.rot_thresh
     art_detect.inputs.translation_threshold = c.trans_thresh
 
     # Deterimne which differences to use for outlier detection: Motion and Intensity parameters
@@ -211,16 +211,17 @@ timDev22.connect([(infosource, infohandle, [
 	("acqID", "acqID")
     ])])
 
-# Unzip bold files and parse the logfiles into bunches
+# Ñarse the logfiles into bunches
 timDev22.connect([
     (infohandle, bunch_log, [("log_path", "time_log")]),
-    (infohandle, bunch_reg, [("reg_path", "confounds_path")]) # reg_path: only BIOPAC
+    (infohandle, bunch_reg, [("reg_path", "confounds_path")]) # reg_path: only exists when including BIOPAC
 ])
 
 timDev22.connect([
     (bunch_log, bunch_reg, [("timfreq_bunch", "bunch")])
 ])
 
+# Unzip bold files
 timDev22.connect([(infohandle, unzip, [("bold_path", "in_file")])])
 
 # Model specs
