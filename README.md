@@ -54,22 +54,19 @@ Data are stored in 3 different folders, depending on their source (MRI scanner, 
 4. Add task stimuli, `dataset_description`, and `README` files to data_MRI/sourcedata/raw/.
 5. Run [BIDS Validator](http://bids.neuroimaging.io/tools/validator.html) on the dataset to ensure compliance to [the latest BIDS specification](https://bids-specification.readthedocs.io/en/stable/).
 
-### 03 Importing & Preprocessing
+### 03 Preprocessing
 1. Run: `bash 02_fMRIprep.sh`
    Outputs:
    - preprocessed fMRI data
 2. Delete temporary cache and work directories once preprocessing is successful.
 
-### 04 GLM Analysis
+### 04 1st Level Analysis: GLM
 1. Download the subcortical atlas and MNI template.
    - [Sitek's in-vivo subcortical atlas](https://github.com/sitek/subcortical-auditory-atlas/tree/master/atlases)
    - [MNI template from Template Flow](https://www.templateflow.org/archive/)
 2. Run `python resample_atlas.py` to:
    - resample Sitek's in-vivo atlas to the resolution of the MNI template used in preprocessing and data analyses, and then to T1w native space (for subcortical ROIS)
    - resample Freesurfer's reconall atlas to T1w native and MNI spaces (for cortical ROIS)
-
-# CURRENTLY IN `DEVELOP MODE` FROM HERE
-
 3. Run `bash 03a_filer_artifacts.sh`
 
    Note, raw physiological data, collected with BIOPAC, is independent from NORDIC denoising steps, while artifact physiological data is not. The confounds text file, created by `filter_artifacts.py`, contains the NORDIC-independent physiological confounds (from [RETROICOR model](https://doi.org/10.1002/1522-2594(200007)44:1%3C162::AID-MRM23%3E3.0.CO;2-E)) and selected confounds from fMRIPrep timeseries file (translations and rotations).
@@ -78,27 +75,26 @@ Data are stored in 3 different folders, depending on their source (MRI scanner, 
    - the selected confounds per volume (physiological artifacts and selected confounds from fMRIPrep - FSL mcflirt)
    - motion outliers (as caluculated by fMRIPrep - FSL mcflirt)
    - motion parameters (translations & rotations)
+4. Run `bash 03b_analyze_task-timDev.sh` or `bash 03b_analyze_task-localizer.sh`
 
-#### 04a. Functional Localizer Analysis
-1. Run `bash 03b_analyze_localizer.sh`
-2. Run `python resample_outputs.py` to:
-   - Resample outputs from the 1st level analysis (beta images/t-values) from restricted FoV space of functional scans to native space of the T1w image.
-TODO: explain the resampling from boldref to T1 per func scan & results images (betas, contrasts).
-TODO: explain the plotting of betas and contrasts with 2ndLevelAnalysis (non-parametric tests per voxel of an ROI and per run (averaging ROI voxels)).
-TODO: list other steps ...
+   Outputs per subject, session, task, acquisition, and optionally, run:
+      - betas 
+      - residuals
+      - contrasts
+      - SPM design
 
-#### 04b. Main Task Analysis
-1. Run `bash 03b_analyze_main.sh`
+5. Run `python resample_outputs.py` to:
+   Before extracting the timeseries from the ROIs: resample the outputs from the 1st level analysis (betas/contrasts/t-values) from restricted FoV space of functional scans to native space of the T1w image using the "from_boldref_to_T1w" transformation file. This ensures that the outputs and the atlas have the same shape and affines.
 
-   Outputs per subject, session, task, aquisition, and optionally, run:
-      - beta images from the SPM design matrix
-      - residual images
-      - SPM design image
+6. Descriptive plotting
+   Returns:
+      - 
 
 #### 05. 2nd Level Analysis
-5. Run `average_betas.py`
-Before extracting the timeseries from the ROIs: resample the atlas and resulting nifti files (beta images or t-values) to T1 space using the "from_boldref_to_T1w" transformation file. This ensures that the resulting image and the atlas have the same shape and affines.
+5. Run `.py`
 
-   Outputs averaged arrays (across experimental blocks and sessions) per specifed region of interests (ROIs) and plots them.
+   Performs non-parametric tests per voxel of an ROI or per run (averaging ROI voxels)
+   Outputs averaged arrays (across experimental runs and sessions) per specifed region of interests (ROIs) and plots them.
+
 # License
 This project is licensed under the terms of the MIT License.
