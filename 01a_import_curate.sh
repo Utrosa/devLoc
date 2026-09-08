@@ -1,37 +1,37 @@
 #!/usr/bin/env bash
 # Time-stamp: <12-06-2026 m.utrosa@bcbl.eu>
 set -eo pipefail
-# -e => exits if any of the processes called generate a non-zero return code at the end.
-# -o pipefail => deals with failures in the middle of a pipeline.
 source activate localizer_fMRI
 
 # Subject-specific parameters
 subID=5
 anatID=2
 project="devLoc"
-n_noise_scans=1
-nordic=1 # If 1, applies NORDIC denoising on functional BOLD images. If 0, skips NORDIC.
+#n_noise_scans=1
+#nordic=1 # If 1, applies NORDIC denoising on functional BOLD images. If 0, skips NORDIC.
 
-# Task-specific parameters: task and acqIDs must correspond
+# Task-specific parameters: task and acqIDs must correspond; except for 
 #task="localizer"
 #acqIDs=("FUNCLOC")
 
-#task="devLoc" # for non-split physio (sessions 2 & 6)
-task="timDev"
-#task="freqDev"
+#task="timDev"
 #acqIDs=("BLOCK1" "BLOCK2" "BLOCK3" "BLOCK4")
+
+task="devLoc" # for non-split physio (sessions 2 & 6)
+#acqIDs=("BLOCK1" "BLOCK2" "BLOCK3" "BLOCK4" "FUNCLOC")
 
 # To which acqIDs do we apply TAPAS?
 # Tapas will find all funcional scans in the dicom folder and
 # will list them based on the acquisition label in alphabetical order.
-acqIDXs=("1" "2" "3" "4") # "BLOCK1" "BLOCK2" "BLOCK3" "BLOCK4" "FUNCLOC"
+# In MATLAB indices start at 1.
+acqIDXs=("1" "2" "3" "4" "5") # "BLOCK1" "BLOCK2" "BLOCK3" "BLOCK4" "FUNCLOC"
 
-# homePath="/home/mutrosa/mutrosa/Documents/projects/devLoc" # Citrix
-homePath="/home/mutrosa/Documents/projects/devLoc" # Local
-funcPath="$homePath/data_MRI/sourcedata/denoised"
+homePath="/home/mutrosa/mutrosa/Documents/projects/devLoc" # Citrix
+#homePath="/home/mutrosa/Documents/projects/devLoc" # Local
+#funcPath="$homePath/data_MRI/sourcedata/denoised"
 
 # Loop through the sessions
-sessions=("3" "4" "5" "7")
+sessions=("2" "6")
 for sesID in "${sessions[@]}"; do
 
 	# STEP 0

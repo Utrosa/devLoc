@@ -1,6 +1,5 @@
 #! /usr/bin/env bash
-# Time-stamp: <18-06-2026 m.utrosa@bcbl.eu>
-
+# Time-stamp: <08-09-2026 m.utrosa@bcbl.eu>
 set -eo pipefail
 # -e => exits if any of the processes called generate a non-zero return code at the end.
 # -o pipefail => deals with failures in the middle of a pipeline.
@@ -11,18 +10,16 @@ source activate localizer_fMRI
 
 # Job-specific parameters
 subID=5
-denoising="True" # True or False
-acqIDs=("BLOCK1" "BLOCK2" "BLOCK3" "BLOCK4") # "FUNCLOC" "BLOCK1" "BLOCK2" "BLOCK3" "BLOCK4"
-task="timDev" # timDev or localizer
+acqIDs=("FUNCLOC") # "FUNCLOC" "BLOCK1" "BLOCK2" "BLOCK3" "BLOCK4"
+task="localizer"   # timDev or localizer or devLoc
+denoising="True"  # NORDIC applied or not during preproc
+biopac=1 # exclude (0) or include (1) BIOPAC physiological regressors
 
 # Project-specific directories
-# homePath='/home/mutrosa/mutrosa/Documents/projects/devLoc' # Citrix
-homePath='/home/mutrosa/Documents/projects/devLoc'           # Local
+homePath='/home/mutrosa/mutrosa/Documents/projects/devLoc' # Citrix
+#homePath='/home/mutrosa/Documents/projects/devLoc'           # Local
 mriPath="$homePath/data_MRI/derivatives/NORDIC-$denoising/derivatives" # NORDIC-True or False
 physioPath="$homePath/data_physio/raw/"
-
-# Whether to exclude (0) or include (1) BIOPAC physiological regressors
-biopac=1
 
 # -------------------------- Confound keys preferences  ---------------------------
 # confound_keys=None # Will default to: trans, rot, csf, wm
@@ -53,7 +50,7 @@ confound_keys=( \
 ## b.) Optionally adds physiological regressors (TAPAS) to the confounds dataframe.
 
 echo "**************** STEP 1: Filtering confounds & artifacts ***************"
-for sesID in 2 3 4 5 6 7 ; do
+for sesID in 2 6 ; do
 	if [[ "$biopac" -eq 1 ]]; then
 		python -m scripts.analysis.filter_artifacts \
 				"$homePath" "$mriPath" "$physioPath" \
