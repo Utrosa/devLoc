@@ -27,7 +27,7 @@ for acqID in c.acqIDs:
 
 		# Construct the path
 		spmT_fold = c.dataPath / f"sub-{c.subID:02d}" / f"ses-{sesID:02d}" / f"acq-{acqID}"
-		spmT_path = spmT_fold / c.spmT_filename
+		spmT_path = spmT_fold / c.spmT_filename + "0001.nii"
 
 		# Extract the subcortical arrays			
 		masks_subcor, mask_path_subcor, spmT_affine_subcor = extract_roi_array(

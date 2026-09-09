@@ -63,7 +63,7 @@ for sesID in c.sesIDs:
 			cond = c.conditions[b - 1]
 
 			# Construct the path
-			beta_name = f"{c.beta_filename}_{b:04d}.nii"
+			beta_name = f"{c.beta_filename}{b:04d}.nii"
 			beta_fold = c.dataPath / f"sub-{c.subID:02d}" / f"ses-{sesID:02d}" / f"acq-{acqID}"
 			beta_path = beta_fold / beta_name
 

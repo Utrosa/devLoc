@@ -44,8 +44,7 @@ elif jobName == "when11where":
 # 03a. Specify filtering artifacts options
 biopac = 1 # excludes (0) or includes (1) BIOPAC physiological regressors
 
-# Confounds
-# None will default to: trans, rot, csf, wm
+# Confounds == None will default to: trans, rot, csf, wm
 # confound_keys = [ 
 #     "csf", 
 #     "csf_derivative1", 
@@ -61,22 +60,22 @@ biopac = 1 # excludes (0) or includes (1) BIOPAC physiological regressors
 # https://fsl.fmrib.ox.ac.uk/fsl/docs/registration/mcflirt.html
 confound_keys = ['rot_x', 'rot_y', 'rot_z', 'trans_x', 'trans_y', 'trans_z']
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03b. Specify 1st level analysis options
 contrast = True   # To estimate contrast or not?
 pooling  = True   # If True absolute timing deviancy regressors, if False nominal.
-binary   = False  # If True, magnitude of timing deviants is not taken into account.
+binary   = True   # If True, magnitude of timing deviants is not taken into account.
 groups   = False  # If False, takes absolute or nominal timing deviants (11 vs 22)
                   # {0 : "negative", 200 : "positive"}
-
-concat    = False # If False, treats runs as a single continuous series
+concat    = True # If False, treats runs as a single continuous series
 hrf_dervs = [0, 0]
 volterra  = False
-smoothing = 2.5  # Set the Gaussian filter width in mm; defaults to None
-artDetect = True # Adds rapidart nipype node for motion detection
+smoothing = None  # Set the Gaussian filter width in mm 2.5; defaults to None
+artDetect = False # Adds rapidart nipype node for motion artifact detection
 if artDetect:
-    # if using motion parameters for outlier detection
-    rot_thresh = 0.3
-    trans_thresh = 0.3
+    zintensity_thresh = 3
+    rot_thresh        = 0.3
+    trans_thresh      = 0.3
 
 # Physiological regressors
 tapas_cols = [f"RETROICOR_Cardiac_{i+1}" for i in range(6)] + \
@@ -116,12 +115,12 @@ remove_empty   = False  # Remove or not empty arrays (e.g.: If we do not average
 subIDs = [5]
 subID  = 5
 anatID = 2
-space  = "T1w" #TODO: What is the differences between T1w and T1wFOV
+space  = "T1w" #TODO: What is the difference between T1w and T1wFOV?
 task   = "timDev"
 sesIDs = [2] # 2, 3, 4, 5, 6, 7
-sessions = 234567 # appears in the filenames
-acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC" 
-blocks = "1234" # appears in the filenames
+sessions = 2 # appears in the filenames 234567
+acqIDs = ["BLOCK1"] # "FUNLOC", "BLOCK2", "BLOCK3", "BLOCK4"
+blocks = "1" # appears in the filenames 1234
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 05. Specify project directories
@@ -151,10 +150,11 @@ for p in [outDir, out_2nd, out_1st, spmt_out, workDir]:
 
 # Filenames and folders of the 1st level analysis output
 # The 1st level results have to be resampled prior to visualization
-con_name = "timDev-freqDev"                    # contrast label
-con_filename   = "con_space-T1wFOV_0001.nii"   # image
-beta_filename  = "beta_space-T1wFOV"           # image
-spmT_filename  = "spmT_space-T1wFOV_0001.nii"  # image
+con_name = "timDev-freqDev"            # contrast label
+# TODO: boldref or T1w or T1wFOV (impacts resampling before visualization!) :below:
+con_filename   = f"con_space-{space}_"   # image
+beta_filename  = f"beta_space-{space}_"  # image
+spmT_filename  = f"spmT_space-{space}_"  # image
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 06. Specify atlas and roi info

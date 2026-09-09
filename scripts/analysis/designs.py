@@ -5,6 +5,8 @@ Defines functions to create SPM design matrices,
 needed for NiPype workflow. These matrices have
 a format of a Bunch object.
 '''
+import warnings
+
 def localizer(logfilepath):
     """
     Parse logfiles into design matrix in NiPype Bunch format.
@@ -62,6 +64,13 @@ def localizer(logfilepath):
     design_info = Bunch(conditions = conditions,
                         onsets     = onsets,
                         durations  = durations)
+    
+    # Print an example of the Bunch conditions to terminal
+    warnings.warn(
+        "\nThe conditions in the bunch of the design `localizer` are:"
+        f"\n{design_info.conditions}"
+    )
+
     return design_info
 
 def timDev(logfilepaths, pooling):
@@ -165,6 +174,13 @@ def timDev(logfilepaths, pooling):
         # Append to list
         design_info_list.append(design_info)
     
+
+    # Print an example of the Bunch conditions to terminal
+    warnings.warn(
+        "\nThe conditions in the bunch of the design `timDev` are:"
+        f"\n{design_info_list[0].conditions}"
+    )
+
     return design_info_list
 
 def freqDev(logfilepaths):
@@ -239,7 +255,13 @@ def freqDev(logfilepaths):
 
         # Append to list
         design_info_list.append(design_info)
-    
+        
+    # Print an example of the Bunch conditions to terminal
+    warnings.warn(
+        "\nThe conditions in the bunch of the design `freqDev` are:"
+        f"\n{design_info_list[0].conditions}"
+    )
+
     return design_info_list
 
 def timfreqDev(time_log, time_groups, time_pool, time_binary):
@@ -444,4 +466,11 @@ def timfreqDev(time_log, time_groups, time_pool, time_binary):
         onsets=time_bunch.onsets + freq_bunch.onsets,
         durations=time_bunch.durations + freq_bunch.durations
     )]
+
+    # Print an example of the Bunch conditions to terminal
+    warnings.warn(
+        "\nThe conditions in the bunch of the design `timfreqDev` are:"
+        f"\n{timfreq_bunch[0].conditions}"
+    )
+
     return timfreq_bunch

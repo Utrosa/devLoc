@@ -15,6 +15,8 @@ Prerequisites:
 import subprocess
 import config as c
 from utils import resample_img, compare_img
+# TODO: update so it does either conversion to MNI or T1, depending on space!
+# TODO: the output from analysis should be which space (?!)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 01. Beta, contrast, and spmT images: from BOLDREF FOV to T1w FOV ------------

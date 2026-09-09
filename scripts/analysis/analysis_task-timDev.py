@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <07-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <08-09-2026 m.utrosa@bcbl.eu>
 '''
 fMRI: GLM model fitting with fixed effects
 
@@ -57,9 +57,9 @@ subjFolders = [('_acqID_%s_sesID_%s_subID_%s' % (acq, ses, sub),
                for sub in c.subIDs]
 substitutions.extend(subjFolders)
 datasink_T1w.inputs.substitutions = substitutions
-datasink_T1w.inputs.substitutions += [('beta_', 'beta_space-boldref_'),]
-datasink_T1w.inputs.substitutions += [('con_',  'con_space-boldref_'),]
-datasink_T1w.inputs.substitutions += [('spmT_',  'spmT_space-boldref_'),]
+datasink_T1w.inputs.substitutions += [('beta_', c.beta_filename),]
+datasink_T1w.inputs.substitutions += [('con_',  c.con_filename),]
+datasink_T1w.inputs.substitutions += [('spmT_', c.spmT_filename),]
 
 # Define a Node that extracts filepaths for all files required for the analysis
 infohandle = pe.Node(
@@ -119,7 +119,7 @@ if c.artDetect:
     art_detect.inputs.parameter_source = "FSL" # fMRIPrep uses FSL MCFLIRT to estimate confounds
     art_detect.inputs.mask_type = "file" # specifies a brain mask file
     art_detect.inputs.save_plot = True # Save plots containing outliers
-    art_detect.inputs.zintensity_threshold  = 3 # Defaults to 3 and mandatory input
+    art_detect.inputs.zintensity_threshold  = c.zintensity_thresh # Example = 3 and mandatory input
     art_detect.inputs.rotation_threshold    = c.rot_thresh   # exclusive with norm_threshold
     art_detect.inputs.translation_threshold = c.trans_thresh # exclusive with norm_threshold
     # art_detect.inputs.norm_threshold = 1 # Defaults to 1
@@ -129,7 +129,7 @@ if c.artDetect:
     # around the head and returns the maximal movement across the centers. 
    
     # Deterimne which differences to use for outlier detection: Motion and Intensity parameters
-    art_detect.inputs.use_differences = [True, False]
+    art_detect.inputs.use_differences = [True, False] # Here intensity is OFF
 
 # -------------------------------------------------------------------------------------------------
 # 03. Specify 1st-level model parameters
@@ -270,24 +270,25 @@ timDev22.connect([
 timDev22.connect([(designer, estimator, [("spm_mat_file", "spm_mat_file")])])
 
 # Contrast
-timDev22.connect([
-				(estimator, contrastor, [("spm_mat_file", "spm_mat_file")]),
-				(estimator, contrastor, [("beta_images", "beta_images")]),
-				(estimator, contrastor, [("residual_image", "residual_image")])])
+if c.contrast:
+    timDev22.connect([
+    				(estimator, contrastor, [("spm_mat_file", "spm_mat_file")]),
+    				(estimator, contrastor, [("beta_images", "beta_images")]),
+    				(estimator, contrastor, [("residual_image", "residual_image")])])
 
 # Save files
 timDev22.connect([
     (estimator, datasink_T1w, [
         ('spm_mat_file', '1stLevel.@estimator_spm_mat'),
         ('residual_image', '1stLevel.@residuals'),
-        ('beta_images', '1stLevel.@beta_images')
-    ]),
-    (contrastor, datasink_T1w, [
-        ('spm_mat_file', '1stLevel.@contrastor_spm_mat'),
-        ('spmT_images', '1stLevel.@T'),
-        ('con_images', '1stLevel.@con')
-    ])
-])
+        ('beta_images', '1stLevel.@beta_images')])])
+
+if c.contrast:
+    timDev22.connect([
+        (contrastor, datasink_T1w, [
+            ('spm_mat_file', '1stLevel.@contrastor_spm_mat'),
+            ('spmT_images', '1stLevel.@T'),
+            ('con_images', '1stLevel.@con')])])
 
 # -------------------------------------------------------------------------------------------------
 # 05. Visualize the Workflow

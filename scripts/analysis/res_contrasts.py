@@ -57,7 +57,7 @@ for sesID in c.sesIDs:
         con_dict["acqID"] = acqID
 
         # Define the contrast file and add to dict
-        con_name = c.con_filename
+        con_name = c.con_filename + "0001.nii"
         con_fold = c.dataPath / f"sub-{c.subID:02d}" / f"ses-{sesID:02d}" / f"acq-{acqID}"
         con_path = con_fold / con_name
 
@@ -76,7 +76,7 @@ print("\nAssuming all contrast images have the same affine.")
 
 # Optionally, save the summed contrast
 if c.save_summed:
-    sum_name = f"sub-{c.subID:02d}_ses-{c.sessions}_acq-BLOCK{c.blocks}_summed-{c.con_filename}.gz"
+    sum_name = f"sub-{c.subID:02d}_ses-{c.sessions}_acq-BLOCK{c.blocks}_summed-{c.con_name}.gz"
     nib.save(
         nib.Nifti1Image(con_img_sum, con_affine),
         c.out_2nd / sum_name
