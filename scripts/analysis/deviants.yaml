@@ -1,0 +1,44 @@
+timDev:
+  when : {
+    "conditions" :  ["timDev"],
+    "weights"    : [1],
+    "binary"     : True,  # all devs are treated as the same event
+    "absolute"   : False, # irrelevant if binary True
+    "groups"     : False  # irrelevant if binary True
+  }
+  when22 : {
+    "conditions" : [
+      "-4", "-8", "-13", "-19", "-27", "-36", "-48", "-63", "-80", "-100", "-125",
+      "4", "8", "13", "19", "27", "36", "48", "63", "80", "100", "125"],
+    "weights" : [
+      0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455,
+      0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455], # 1/22 = 0.045455
+      "binary"   : False, # devs are treated differently
+      "absolute" : False, # direction matters (early is assumed different from late)
+      "groups"   : False  # no assumption about groups (taking values from exp. design)
+  }
+  when11 : {
+    "conditions" : ["4", "8", "13", "19", "27", "36", "48", "63", "80", "100", "125"],
+    "weights" : [
+      0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909], # 1/11 = 0.0909091
+      "binary"   : False, # devs are treated differently
+      "absolute" : True,  # direction irrelevant (early is assumed equal to late)
+      "groups"   : False  # no assumption about groups (taking values from exp. design)
+  }
+  "whenPosNeg" : {
+    "conditions" : ["positive", "negative"],
+    "weights" : [0.5, 0.5], # 1/2
+    "binary"   : False,  # devs are treated differently
+    "absolute" : False,  # direction matters (early is assumed different from late)
+    "groups"   : {
+      "positive" : [-4, -8, -13, -19, -27, -36, -48, -63, -80, -100, -125], # must be integers !
+      "negative" : [4, 8, 13, 19, 27, 36, 48, 63, 80, 100, 125]             # must be integers !
+      }
+    }
+
+freqDev:
+  what : {
+    "conditions" : ["freqDev"], # all freqDevs are treated as the same event
+                                # direction and magnitude do not matter
+    "weights" : [-1]
+  }

@@ -17,6 +17,25 @@ from nilearn.image import resample_to_img
 # Import custom-made functions
 import grabber
 
+def find_dev_group(delta_str, groups):
+    """
+    Determines the group name for a given delta string based on the groups dictionary.
+    
+    Args:
+        delta_str (str): The delta value, potentially with a prefix (e.g., "p10", "n5", or "10").
+        groups (dict): A dictionary where keys are group names and values are lists of integers.
+        
+    Returns:
+        str|int: The name of the group if found, otherwise the parsed integer value.
+    """
+    for group_name, group_list in groups.items():
+        if target_val in group_list:
+            return group_name
+
+    # If deviation not found in any group, return the raw value (or signed value)
+    print(f"{target_val} not found in any group: {group_name}.")
+    return target_val
+
 def get_base_dirs(homePath, develop_mode, jobName, denoising):
     """Returns the core result directories based on mode."""
     base = homePath / ("results" if develop_mode else "tests")

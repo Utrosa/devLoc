@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <08-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <10-09-2026 m.utrosa@bcbl.eu>
 '''
 fMRI: GLM model fitting with fixed effects
 
@@ -139,15 +139,15 @@ if c.artDetect:
 # Create a Bunch object by parsing all event files: timDev & freqDev are separx<wate Bunch objects.
 bunch_log = pe.Node(
     Function(
-        input_names = ["time_log", "time_groups", "time_pool", "time_binary"],
+        input_names  = ["time_log", "time_binary", "time_abs", "time_groups"],
         output_names = ["timfreq_bunch"],
         function = timfreqDev
     ),
     name = "bunch_log"
 )
-bunch_log.inputs.time_groups = c.groups
-bunch_log.inputs.time_pool   = c.pooling
 bunch_log.inputs.time_binary = c.binary
+bunch_log.inputs.time_abs    = c.absolute
+bunch_log.inputs.time_groups = c.groups
 
 # Add regressors to Bunch
 bunch_reg = pe.Node(
@@ -181,9 +181,10 @@ modeler = pe.Node(
 )
 
 # --------- B. Level1Design - Generate an SPM design matrix
+# https://nipype.readthedocs.io/en/latest/api/generated/nipype.interfaces.spm.model.html#nipype.interfaces.spm.model.Level1Design
 designer = pe.Node(
     spm.Level1Design(
-        bases = {'hrf': {'derivs': c.hrf_dervs}},
+        bases = {'hrf': {'derivs': c.hrf_dervs}}, # TODO: plug in the bases functions from Alex
         timing_units = 'secs',
         volterra_expansion_order = (2 if c.volterra else 1)
     ),
@@ -199,7 +200,7 @@ estimator = pe.Node(
 # --------- D. Contrastor -  Estimate contrasts
 if c.contrast:
     contrastor = pe.Node(
-        spm.EstimateContrast(contrasts = c.contrasts[c.jobName]),
+        spm.EstimateContrast(contrasts = c.contrasts),
         name = 'contrastor'
     )
 

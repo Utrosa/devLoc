@@ -1,18 +1,33 @@
 #! /usr/bin/env python
-# Time-stamp: <2026-06-03 m.utrosa@bcbl.eu>
+# Time-stamp: <10-09-2026 m.utrosa@bcbl.eu>
 '''
 Defines functions to create SPM design matrices,
 needed for NiPype workflow. These matrices have
 a format of a Bunch object.
+
+Zero is not included as a timing deviancy condition!
+
+The difference between timDev and timDevCat:
+- timDev either takes absolute or nominal values of timing
+  deviations, as defined in the experimental task
+- timDevCat allows user-specified categorization of timing
+  deviations, so making theory-informed grouping (less precise)
+
+TODO: systemize arguments -- can they all have the same name, so it's easier
+to adapt the analysis for a different design?
+TODO: why do some designs and (timDevCat, localizer) take only one log file
+as input and other a list of log paths?
+
 '''
 import warnings
+from utils import find_dev_group
 
 def localizer(logfilepath):
     """
-    Parse logfiles into design matrix in NiPype Bunch format.
+    Parse a logfile into design matrix in Nipype Bunch format.
 
     Parameters:
-        logfilepaths (list): List of file paths to logfiles.
+        logfilepath (str): File path to a logfile.
 
     Returns:
         list: A list of Bunch objects containing design information.
@@ -73,7 +88,7 @@ def localizer(logfilepath):
 
     return design_info
 
-def timDev(logfilepaths, pooling):
+def timDev(logfilepaths, absolute):
     """
     Parse logfiles into design matrix for the 'timDev' paradigm. 
     Timing deviancy conditions can be taken as absolute or relative values.
@@ -81,8 +96,8 @@ def timDev(logfilepaths, pooling):
 
     Parameters:
         logfilepath (str): Path to the log file.
-        pooling: If True, timing deviants are pooled as asbolute values. 
-                 If False, separate conditions for negative and positive values.
+        absolute: If True, timing deviants are pooled as absolute values. 
+                  If False, separate conditions for negative and positive values.
 
     Returns:
         list: A list of Bunch objects containing conditions, onsets, and durations.
@@ -91,8 +106,8 @@ def timDev(logfilepaths, pooling):
     import csv
     from nipype.interfaces.base import Bunch
 
+    # Loop through the logs
     design_info_list = []
-
     for logfilepath in logfilepaths:
         
         # Get info on stimuli onset, duration and trial type from events.tsv file
@@ -137,7 +152,7 @@ def timDev(logfilepaths, pooling):
                         deviation = int(pD)
                     elif "n" in delta:
                         nD = delta.strip("n")
-                        if pooling:
+                        if absolute:
                             deviation = int(nD)
                         else:
                             deviation = -int(nD)
@@ -165,6 +180,7 @@ def timDev(logfilepaths, pooling):
             onsets.append([e['onset'] for e in events_by_dev[dev]])
             durations.append([e['duration'] for e in events_by_dev[dev]])
 
+        # Create the bunch object
         design_info = Bunch(
             conditions=conditions,
             onsets=onsets,
@@ -182,6 +198,142 @@ def timDev(logfilepaths, pooling):
     )
 
     return design_info_list
+
+def timDevCat(time_logs, binary, absolute, groups):
+    """
+    Parse logfiles into design matrix for the 'timDev' paradigm. 
+    Timing deviancy conditions can be taken as absolute or relative values.
+    Zero is not included as a timing deviancy condition.
+
+    Arguments:
+        time_logs (list):
+            Paths to the log file.
+        binary (bool):
+            If True, all timing deviants are grouped into a single condition,
+            ignoring magnitude and direction.
+        absolute (bool):
+            If True, timing deviants are pooled as abolute values. 
+            If False, separate conditions for negative and positive values.
+        groups (dict):
+            A sorted dictionary of upper bounds (keys) and names for the timing 
+            deviants groups they create (values). Defaults to False (no grouping).
+
+    Returns:
+        list: A Bunch object containing conditions, onsets, and durations.
+    """
+    # Get group values and names, if grouping applies to timing deviants 
+    if groups:
+        group_values = list(groups.keys())
+        group_names  = list(groups.values())
+
+    # Loop through the logs
+    design_info_list = []
+    for time_log in time_logs:
+
+        # Initialize a dictionary to store info per timing deviation
+        events_by_dev = {}
+        
+        # Read info on stimuli onset, duration and trial type from events.tsv file
+        with open(time_log, 'r') as logfile:
+
+            # Skip header row
+            next(logfile)
+
+            # Auto-detect delimiter (should be tab)
+            sample = logfile.read(3000)
+            logfile.seek(0)
+            dialect = csv.Sniffer().sniff(sample, delimiters=[";", "\t", ","])
+            
+            # Read the logfile
+            logTsv  = csv.reader(logfile, dialect)
+            next(logTsv)  # Skip header again
+
+            for line in logTsv:
+
+                # Get event's onset and duration
+                onset = float(line[0])
+                duration = float(line[1])
+                event = {'onset': onset, 'duration': duration}
+                
+                # Get stimulus type
+                deviation_str = line[2]
+                
+                # Initialize deviation to a default value (e.g., None)
+                deviation = None
+
+                # Does the current row correspond to a time deviant tone?
+                if "delta" in deviation_str:
+                    if binary:
+                        deviation = "timDev"
+                    else:
+                        # Strip to get the delta
+                        delta_str = deviation_str.split("delta-")[1]
+                        delta = delta_str.split("ms")[0]
+                        
+                        # Figure out the direction: positive or negative delta?
+                        # Positive deltas
+                        if "p" in delta:
+                            pD = delta.strip("p")
+
+                            if groups:
+                                deviation = find_dev_group(int(pD), groups)
+                            else:
+                                deviation = int(pD)
+                        
+                        # Negative deltas                   
+                        elif "n" in delta:
+                            nD = delta.strip("n")
+
+                            if absolute:
+                                if groups:
+                                    deviation = find_dev_group(int(nD), groups)
+                                else:
+                                    deviation = int(nD)
+                            else:
+                                if groups:
+                                    deviation = find_dev_group(-int(nD), groups)
+                                else:
+                                    deviation = -int(nD)
+                else:
+                    deviation = None
+
+                # Initialize list for this deviation
+                if deviation is not None:
+                    if deviation not in events_by_dev:
+                        events_by_dev[deviation] = []
+                    events_by_dev[deviation].append(event)
+
+        # Sort deviations from negative to positive
+        # Important to ensure consistent order in the conditions list
+        sorted_deviations = sorted(events_by_dev.keys())
+
+        # Create conditions (a list of strings)
+        conditions = [str(i) for i in sorted_deviations]
+
+        # Extract onsets and durations in the same order as conditions
+        onsets = []
+        durations = []
+        for dev in sorted_deviations:
+            onsets.append([e['onset'] for e in events_by_dev[dev]])
+            durations.append([e['duration'] for e in events_by_dev[dev]])
+
+        # Create the bunch object
+        design_info = Bunch(
+            conditions=conditions,
+            onsets=onsets,
+            durations=durations
+        )
+
+        # Append to list
+        design_info_list.append(design_info)
+
+    # Print an example of the Bunch conditions to terminal
+    warnings.warn(
+        "\nThe conditions in the bunch of the design `timDevCat` are:"
+        f"\n{design_info_list[0].conditions}"
+    )
+
+    return design_info
 
 def freqDev(logfilepaths):
     """
@@ -264,26 +416,26 @@ def freqDev(logfilepaths):
 
     return design_info_list
 
-def timfreqDev(time_log, time_groups, time_pool, time_binary):
+def timfreqDev(time_log, time_binary, time_abs, time_groups):
     """
     Joins the events of timDev and freqDev tasks from timDev log file. 
 
     Parameters:
         time_log:    path to the log files for timDev task.
-        time_groups: dict/bool, a sorted dictionary of upper bounds (keys) and names for the timing 
-                     deviants groups they create (values). Default to False (no grouping).
-        time_pool:   If True, timing deviants are pooled as abolute values. 
-                     If False, separate conditions for negative and positive values.
         time_binary: If True, all timing deviants are grouped into a single condition,
                      ignoring magnitude and direction. Defaults to False.
+        time_abs:    If True, timing deviants are pooled as abolute values. 
+                     If False, separate conditions for negative and positive values.
+        time_groups: dict/bool, a sorted dictionary of upper bounds (keys) and names for the timing 
+                     deviants groups they create (values). Default to False (no grouping).
     Returns:
         list: A Bunch object containing conditions, onsets, and durations.
     """
-    import csv, bisect
+    import csv
     from nipype.interfaces.base import Bunch
     
-    # Nest the timing deviancy function
-    def timDevCat(time_log, groups, pooling, binary):
+    # Nest timDevCat function which takes a single log file as input
+    def timDevCat1(time_log, binary, absolute, groups):
         """
         Parse logfiles into design matrix for the 'timDev' paradigm. 
         Timing deviancy conditions can be taken as absolute or relative values.
@@ -291,13 +443,12 @@ def timfreqDev(time_log, time_groups, time_pool, time_binary):
 
         Parameters:
             time_log (str): Path to the log file.
-            groups: A sorted dictionary of upper bounds (keys) and names for the timing 
-                    deviants groups they create (values). Defaults to False (no grouping).
-            pooling: If True, timing deviants are pooled as abolute values. 
-                     If False, separate conditions for negative and positive values.
-            binary: If True, all timing deviants are grouped into a single condition,
-                    ignoring magnitude and direction. Defaults to False.
-
+            binary:    If True, all timing deviants are grouped into a single condition,
+                       ignoring magnitude and direction. 
+            absolute:  If True, timing deviants are pooled as abolute values. 
+                       If False, separate conditions for negative and positive values.
+            groups:    A sorted dictionary of upper bounds (keys) and names for the timing 
+                       deviants groups they create (values). False means no grouping.
         Returns:
             list: A Bunch object containing conditions, onsets, and durations.
         """
@@ -307,7 +458,7 @@ def timfreqDev(time_log, time_groups, time_pool, time_binary):
         # Get group values and names, if grouping applies to timing deviants 
         if groups:
             group_values = list(groups.keys())
-            group_names = list(groups.values())
+            group_names  = list(groups.values())
 
         # Read info on stimuli onset, duration and trial type from events.tsv file
         with open(time_log, 'r') as logfile:
@@ -352,9 +503,7 @@ def timfreqDev(time_log, time_groups, time_pool, time_binary):
                             pD = delta.strip("p")
 
                             if groups:
-                                # Binary search for the group
-                                idx = bisect.bisect_right(group_values, int(pD))
-                                deviation = group_names[idx]
+                                deviation = find_dev_group(int(pD), groups)
                             else:
                                 deviation = int(pD)
                         
@@ -362,17 +511,14 @@ def timfreqDev(time_log, time_groups, time_pool, time_binary):
                         elif "n" in delta:
                             nD = delta.strip("n")
 
-                            if pooling:
+                            if absolute:
                                 if groups:
-                                    # Binary search for the group
-                                    idx = bisect.bisect_right(group_values, int(nD))
-                                    deviation = group_names[idx]
+                                    deviation = find_dev_group(int(nD), groups)
                                 else:
                                     deviation = int(nD)
                             else:
                                 if groups:
-                                    idx = bisect.bisect_right(group_values, -int(nD))
-                                    deviation = group_names[idx]
+                                    deviation = find_dev_group(-int(nD), groups)
                                 else:
                                     deviation = -int(nD)
                 else:
@@ -406,7 +552,7 @@ def timfreqDev(time_log, time_groups, time_pool, time_binary):
         return design_info
     
     # Create timing deviancy Bunch 
-    time_bunch = timDevCat(time_log, time_groups, time_pool, time_binary)
+    time_bunch = timDevCat1(time_log, time_groups, time_binary, time_abs)
 
     # Get info on stimuli onset, duration and trial type from events.tsv file
     # Initialize a dictionary to store that info per timing deviation
