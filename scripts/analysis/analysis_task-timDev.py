@@ -30,13 +30,13 @@ from utils import add_nuisance
 # Infosource: set up a function-free node to iterate over the list of acquisition names.
 # The Identity Interface allows to create Nodes that only work with strings (parameters)!
 infosource = pe.Node(
-    IdentityInterface(fields = ['subID', 'sesID', 'acqID']),
+    IdentityInterface(fields = ['subID', 'sesID']),
 	name = "infosource"
 )
 infosource.iterables = [
     ('subID', c.subIDs),
-	('sesID', c.sesIDs),
-	('acqID', c.acqIDs)
+	('sesID', c.sesIDs)
+	# ('acqID', c.acqIDs)
 ]
 
 # T1w Datasink: create output folder for important outputs in T1w space
@@ -50,11 +50,16 @@ datasink_T1w = pe.Node(
 
 # Output substitutions: correct all Datasink output folder structures
 substitutions = []
-subjFolders = [('_acqID_%s_sesID_%s_subID_%s' % (acq, ses, sub),
-				'sub-0%s/ses-0%s/acq-%s' % (sub, ses, acq))
-               for acq in c.acqIDs
+subjFolders = [('sesID_%s_subID_%s' % (ses, sub),
+				'sub-0%s/ses-0%s' % (sub, ses))
                for ses in c.sesIDs
                for sub in c.subIDs]
+
+# subjFolders = [('_acqID_%s_sesID_%s_subID_%s' % (acq, ses, sub),
+#                 'sub-0%s/ses-0%s/acq-%s' % (sub, ses, acq))
+#                for acq in c.acqIDs
+#                for ses in c.sesIDs
+#                for sub in c.subIDs]
 substitutions.extend(subjFolders)
 datasink_T1w.inputs.substitutions = substitutions
 datasink_T1w.inputs.substitutions += [('beta_', c.beta_filename),]
@@ -99,7 +104,7 @@ infohandle.inputs.mriPath  = str(c.mriPath)
 infohandle.inputs.artPath  = str(c.artPath)
 infohandle.inputs.space    = c.space
 infohandle.inputs.task     = c.task
-infohandle.inputs.run      = False # TODO: check this?
+infohandle.inputs.run      = False # Relevant for grabbing objects if "run" present in BIDS filenames
 
 # -------------------------------------------------------------------------------------------------
 # 02. Additional preprocessing nodes: smoothing and outlier detection
@@ -119,7 +124,7 @@ if c.artDetect:
     art_detect.inputs.parameter_source = "FSL" # fMRIPrep uses FSL MCFLIRT to estimate confounds
     art_detect.inputs.mask_type = "file" # specifies a brain mask file
     art_detect.inputs.save_plot = True   # Save plots containing outliers
-    art_detect.inputs.plot_type = "png"
+    art_detect.inputs.plot_type = "pdf"
     art_detect.inputs.zintensity_threshold  = c.zintensity_thresh # Example = 3 and mandatory input
     art_detect.inputs.rotation_threshold    = c.rot_thresh   # exclusive with norm_threshold
     art_detect.inputs.translation_threshold = c.trans_thresh # exclusive with norm_threshold

@@ -97,12 +97,12 @@ tapas_cols = [f"RETROICOR_Cardiac_{i+1}" for i in range(6)] + \
 artDetect = True
 if artDetect:
     zintensity_thresh = 3   # detect images that deviate from the mean
-    rot_thresh        = 0.3 # in radians
+    rot_thresh        = 0.3 # in radians 0.2 - 0.5
     trans_thresh      = 0.3 # in mm
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03b. Specify 1st level analysis options
-concat    = True  # If False, treats runs as a single continuous series
+concat    = True  # If True, treats runs (acq / BLOCKS) as one continuous series # TODO: how to concat acquisitions?!?!
 hrf_dervs = [0, 0]
 volterra  = False
 smoothing = None  # Set the Gaussian filter width in mm 2.5; defaults to None
@@ -132,8 +132,8 @@ space  = "T1w" #TODO: What is the difference between T1w and T1wFOV?
 task   = "timDev"
 sesIDs = [2] # 2, 3, 4, 5, 6, 7
 sessions = 2 # appears in the filenames 234567
-acqIDs = ["BLOCK1"] # "FUNLOC", "BLOCK2", "BLOCK3", "BLOCK4"
-blocks = "1" # appears in the filenames 1234
+acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC", "BLOCK2", "BLOCK3", "BLOCK4"
+blocks = "1234" # appears in the filenames 1234
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 05. Specify project directories
