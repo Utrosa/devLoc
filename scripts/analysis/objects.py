@@ -134,7 +134,7 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		if len(orig_to_boldref_object) > 1 or len(boldref_to_T1w_object) > 1:
 			warnings.warn(
                 "Multiple transformation files found: "
-                f"\n * orig_to_boldref: {[f'{Path(otbo).name}' for otbo in orig_to_boldref_object]}\n "
+                f"\n * orig_to_boldref: {[f'{Path(otbo).name}' for otbo in orig_to_boldref_object]} "
                 f"\n * boldref_to_T1w: {[f'{Path(btto).name}' for btto in boldref_to_T1w_object]}"
             )
 		
@@ -164,12 +164,12 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		for otbo in orig_to_boldref_object:
 			if "from-orig_to-boldref" in str(otbo):
 				orig_to_boldref_path = otbo.path
-				print(f"\n For from-orig_to-boldref selected: {Path(otbo).name}")
+				print(f"\nFor from-orig_to-boldref selected: {Path(otbo).name}")
 
 		for btto in boldref_to_T1w_object:
 			if "from-boldref_to-T1w" in str(btto):
 				boldref_to_T1w_path = btto.path
-				print(f"\n For from-boldref_to-T1w selected: {Path(otbo).name}")
+				print(f"\nFor from-boldref_to-T1w selected: {Path(btto).name}")
 
 		# Extract repetition time with PyBIDS methods [sec]
 		TR = bold_object[0].get_metadata()['RepetitionTime']
@@ -268,7 +268,7 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		if len(orig_to_boldref_object) > 1 or len(boldref_to_T1w_object) > 1:
 			warnings.warn(
                 "Multiple transformation files found: "
-                f"\n * orig_to_boldref: {[f'{Path(otbo).name}' for otbo in orig_to_boldref_object]}\n "
+                f"\n * orig_to_boldref: {[f'{Path(otbo).name}' for otbo in orig_to_boldref_object]}"
                 f"\n * boldref_to_T1w: {[f'{Path(btto).name}' for btto in boldref_to_T1w_object]}"
             )
 		
@@ -298,12 +298,12 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		for otbo in orig_to_boldref_object:
 			if "from-orig_to-boldref" in str(otbo):
 				orig_to_boldref_path = otbo.path
-				print(f"\n For from-orig_to-boldref selected: {Path(otbo).name}")
+				print(f"\nFor from-orig_to-boldref selected: {Path(otbo).name}")
 
 		for btto in boldref_to_T1w_object:
 			if "from-boldref_to-T1w" in str(btto):
 				boldref_to_T1w_path = btto.path
-				print(f"\n For from-boldref_to-T1w selected: {Path(otbo).name}")
+				print(f"\nFor from-boldref_to-T1w selected: {Path(btto).name}")
 
 		# Extract repetition time with PyBIDS methods [sec]
 		TR = bold_object[0].get_metadata()['RepetitionTime']

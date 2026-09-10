@@ -26,8 +26,8 @@ denoising    = True  # denoising from prepro (NORDIC)
 verbose      = False
 
 # How do we model deviant events? See deviants.yaml
-timDev_jobName  = "whenPosNeg"
-freqDev_jobName = False # False or "what"
+timDev_jobName  = "when22"
+freqDev_jobName = "what" # False or "what"
 if freqDev_jobName:
     jobName  = timDev_jobName + freqDev_jobName
 else:
@@ -56,15 +56,16 @@ absolute = timDev["absolute"] # Absolute or nomibal timing deviancy regressors?
 binary   = timDev["binary"]   # If True, magnitude (size) of timing deviants is not considered.
 groups   = timDev["groups"]   # If False, no grouping. Values must be integers.
 
-# Check values are of correct type
-for group_name, group_values in groups.items():
-    for i, val in enumerate(group_values):
-        if not isinstance(val, int):
-            raise TypeError(
-                f"Error in group '{group_name}': Value at index {i} is {val!r} "
-                f"(type: {type(val).__name__}), expected int. "
-                "All values must be integers for bisect to work correctly."
-            )
+# Check if values are of correct type
+if groups:
+    for group_name, group_values in groups.items():
+        for i, val in enumerate(group_values):
+            if not isinstance(val, int):
+                raise TypeError(
+                    f"Error in group '{group_name}': Value at index {i} is {val!r} "
+                    f"(type: {type(val).__name__}), expected int. "
+                    "All values must be integers for bisect to work correctly."
+                )
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03a. Specify physiological regressors options
@@ -93,11 +94,11 @@ tapas_cols = [f"RETROICOR_Cardiac_{i+1}" for i in range(6)] + \
              [f"RETROICOR_Multiplicative_{i+1}" for i in range(4)]
 
 # Rapidart nipype node for motion artifact detection
-artDetect = False
+artDetect = True
 if artDetect:
-    zintensity_thresh = 3
-    rot_thresh        = 0.3
-    trans_thresh      = 0.3
+    zintensity_thresh = 3   # detect images that deviate from the mean
+    rot_thresh        = 0.3 # in radians
+    trans_thresh      = 0.3 # in mm
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03b. Specify 1st level analysis options
@@ -108,7 +109,7 @@ smoothing = None  # Set the Gaussian filter width in mm 2.5; defaults to None
 
 # Contrast specification
 contrast  = True
-contrasts = (jobName, 'T', conditions, contrast_weights)
+contrasts = [(jobName, 'T', conditions, contrast_weights)]
 
 # 03c. Specify data handling and plotting preferences for 1st level results
 save_roi       = False  # applies to extracted ROI arrays
@@ -153,8 +154,8 @@ physioPath = homePath / "data_physio" / "raw"
 mriPath  = homePath / "data_MRI" / "derivatives" / f"NORDIC-{denoising}" / "derivatives" # path to preproc outputs
 anatPath = mriPath / f"sub-{subID:02d}" / f"ses-{anatID:02d}" / "anat"
 funcPath = mriPath / f"sub-{subID:02d}"
-freesurfer_dir = mriPath / "sourcedata" / "freesurfer" / f"sub-{subID:02d}_ses-{anatID:02d}" / "mri"
 artPath  = homePath / "data_physio" / "artifacts" / f"NORDIC-{denoising}"
+freesurfer_dir = mriPath / "sourcedata" / "freesurfer" / f"sub-{subID:02d}_ses-{anatID:02d}" / "mri"
 
 # Create missing directories
 for p in [outDir, out_2nd, out_1st, spmt_out, workDir]:

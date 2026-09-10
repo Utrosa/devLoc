@@ -226,6 +226,8 @@ l1_localizer.connect([
 l1_localizer.write_graph(graph2use = 'colored', format = 'png', simple_form = True)
 
 # -------------------------------------------------------------------------------------------------
-# 04. Run the Workflow
+# 04. Run the Workflow: https://nipype.readthedocs.io/en/0.11.0/users/plugins.html
 # -------------------------------------------------------------------------------------------------
-res = l1_localizer.run('MultiProc')
+# MultiProc: Uses the Python multiprocessing library to distribute jobs as new processes (local)
+# SGE or SLURM plugins possible 
+res = l1_localizer.run(plugin='MultiProc')

@@ -75,10 +75,13 @@ Data are stored in 3 different folders, depending on their source (MRI scanner, 
    - the selected confounds per volume (physiological artifacts and selected confounds from fMRIPrep - FSL mcflirt)
    - motion outliers (as caluculated by fMRIPrep - FSL mcflirt)
    - motion parameters (translations & rotations)
+
+# IN DEVELOP MODE FROM HERE :ARROW_DOWN:
+
 4. Run `bash 03b_analyze_task-timDev.sh` or `bash 03b_analyze_task-localizer.sh`
 
    Outputs per subject, session, task, acquisition, and optionally, run:
-      - betas 
+      - betas
       - residuals
       - contrasts
       - SPM design

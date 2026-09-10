@@ -118,16 +118,20 @@ if c.artDetect:
     )
     art_detect.inputs.parameter_source = "FSL" # fMRIPrep uses FSL MCFLIRT to estimate confounds
     art_detect.inputs.mask_type = "file" # specifies a brain mask file
-    art_detect.inputs.save_plot = True # Save plots containing outliers
+    art_detect.inputs.save_plot = True   # Save plots containing outliers
+    art_detect.inputs.plot_type = "png"
     art_detect.inputs.zintensity_threshold  = c.zintensity_thresh # Example = 3 and mandatory input
     art_detect.inputs.rotation_threshold    = c.rot_thresh   # exclusive with norm_threshold
     art_detect.inputs.translation_threshold = c.trans_thresh # exclusive with norm_threshold
-    # art_detect.inputs.norm_threshold = 1 # Defaults to 1
-    art_detect.inputs.use_norm = Undefined 
-    # If norm_threshold is set, has to be True (default).
-    # If True, it computes the movement of the center of each face a cuboid centered
-    # around the head and returns the maximal movement across the centers. 
-   
+
+    # use_norm uses a composite of the motion parameters to determine outliers -> it computes
+    # the movement of the center of each face a cuboid centered around the head and returns 
+    # the maximal movement across the centers
+    art_detect.inputs.use_norm = Undefined
+    
+    # art_detect.inputs.norm_threshold = 1
+    # If norm_threshold is set, use_norm must be True (default).
+
     # Deterimne which differences to use for outlier detection: Motion and Intensity parameters
     art_detect.inputs.use_differences = [True, False] # Here intensity is OFF
 
@@ -139,7 +143,7 @@ if c.artDetect:
 # Create a Bunch object by parsing all event files: timDev & freqDev are separx<wate Bunch objects.
 bunch_log = pe.Node(
     Function(
-        input_names  = ["time_log", "time_binary", "time_abs", "time_groups"],
+        input_names  = ["time_log", "time_binary", "time_abs", "time_groups", "add_freqDev"],
         output_names = ["timfreq_bunch"],
         function = timfreqDev
     ),
@@ -148,6 +152,7 @@ bunch_log = pe.Node(
 bunch_log.inputs.time_binary = c.binary
 bunch_log.inputs.time_abs    = c.absolute
 bunch_log.inputs.time_groups = c.groups
+bunch_log.inputs.add_freqDev = c.freqDev_jobName
 
 # Add regressors to Bunch
 bunch_reg = pe.Node(
@@ -242,18 +247,20 @@ else:
     ])
 
 if c.artDetect:
+    
     # Estimate motion outliers
     timDev22.connect([(infohandle, art_detect, [
             ("mask_path", "mask_file"),
-            ("movpar_path", "realignment_parameters"),
-            ("bold_path", "realigned_files")])])
+            ("movpar_path", "realignment_parameters"), # Realign (rot & trans) goes here
+            ("bold_path", "realigned_files") # Realigned functional data files
+            ])])
 
     # Connect to modeler
-    timDev22.connect([(art_detect, modeler, [("outlier_files", "outlier_files")])])
+    timDev22.connect([(art_detect, modeler, [("outlier_files", "outlier_files")])]) # artDetect outliers
 else:
     timDev22.connect([
         (infohandle, modeler, [
-            ("out_path", "outlier_files"),
+            ("out_path", "outlier_files"), # outliers.txt created by `filer_artifacts` function
             ("conf_path", "realignment_parameters")])])
 
 # Connect to modeler
@@ -282,7 +289,17 @@ timDev22.connect([
     (estimator, datasink_T1w, [
         ('spm_mat_file', '1stLevel.@estimator_spm_mat'),
         ('residual_image', '1stLevel.@residuals'),
-        ('beta_images', '1stLevel.@beta_images')])])
+        ('beta_images', '1stLevel.@beta_images')]),
+    (art_detect, datasink_T1w, [
+        ('displacement_files', '1stLevel.@displacement_files'),
+        ('intensity_files', '1stLevel.@intensity_files'),
+        ('mask_files', '1stLevel.@mask_files'),
+        ('norm_files', '1stLevel.@norm_files'),
+        ('outlier_files', '1stLevel.@outlier_files'),
+        ('plot_files', '1stLevel.@plot_files'),
+        ('statistic_files', '1stLevel.@statistic_files')
+        ])
+    ])
 
 if c.contrast:
     timDev22.connect([
@@ -297,6 +314,8 @@ if c.contrast:
 timDev22.write_graph(graph2use='colored', format='png', simple_form=True)
 
 # -------------------------------------------------------------------------------------------------
-# 06. Run the Workflow
+# 06. Run the Workflow: https://nipype.readthedocs.io/en/0.11.0/users/plugins.html
 # -------------------------------------------------------------------------------------------------
-res = timDev22.run()
+# MultiProc: Uses the Python multiprocessing library to distribute jobs as new processes (local)
+# SGE or SLURM plugins possible 
+res = timDev22.run('MultiProc')
