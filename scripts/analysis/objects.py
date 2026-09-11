@@ -4,11 +4,38 @@
 Grabs objects needed for other scripts.
 Grabs functional and anatomical files in the specified space.
 '''
+def check_object(obj, name, sub, ses, extra_params="", warning_only=False):
+    """
+    Raises a ValueError for missing or ambiguous files.
 
-def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID, task, run):
+    Args:
+        obj (list): The list of file objects to validate.
+        name (str): A descriptive name for the file type.
+        sub (int): The subject identifier.
+        ses (str): The session identifier.
+        extra_params (str): Additional context parameters to append to the message.
+        warning_only (bool): If True, issue a warning instead of raising an error.
+    """
+    import warnings
+    count = len(obj)
+
+    # Check for missing values
+    if count == 0:
+        msg = f"No {name} found for sub-{sub:02d}, ses-{ses:02d}, {extra_params}."
+        if warning_only:
+            warnings.warn(msg)
+        else:
+            raise ValueError(msg)
+	
+	# Check which files are found as a group if more than one file found   
+    elif count > 1:
+        msg = f"Found more than one {name}:\n{obj}.\nPlease verify your file-grabbing inputs."
+        warnings.warn(msg)
+
+def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, task, acq=None, run=None):
 	"""
-	Locate functional and anatomical objects and returns a tuple of filepaths and
-	TR based on the specified subject, session, acquisition, and run.
+	Locate functional and anatomical objects and returns a tuple of filepaths and TR based on the 
+	specified subject and session. Optionally, you can specify the acquisition and run.
 
 	Args:
 		subID (int): The subject identifier.
@@ -18,9 +45,12 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 		mriPath (str): The path to the MRI data.
 		artPath (str): ThE path to the preprocessed physiological data.
 		space (str): The target space for the files (e.g., MNI152NLin2009cAsym or T1w).
-		acqID (str): Acquisition name.
 		task (str): Name of the experimental task that the subject was doing.
-		run (bool/str): If False, no run identifier is used to locate files. If str (True),
+
+	Òptional args:
+		acq (None/str): If None, no acquisition name is used to locate files. If str (True),
+						that acquisition identifier is used to find files.
+		run (None/str): If None, no run identifier is used to locate files. If str (True),
 						that run identifier is used to find files.
 
 	Returns:
@@ -28,284 +58,130 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, acqID,
 
 	Note:
 		Ensure that session, acquisition, and run match an existing scenario.
-		Transformation files (xfm) are assumed to be returned in alphabetical order by the grabber.
 	"""
 	
 	import bids
 	import grabber
 	import warnings
-	from pathlib import Path
+	from pathlib import Path	
 
-	if run:
+	# Initialize paths
+	homePath = Path(homePath)
+	mriPath  = Path(mriPath)
+	artPath  = Path(artPath)
 
-		# If run is not False, then it is run identifier (a string).
-		runID = run		
+	# -------------- 01 Set up layouts -------------- 
+	logpath   = homePath / "data_logs" / "bids"
+	logLayout = bids.layout.BIDSLayout(logpath, validate=False)
+	mriLayout = bids.layout.BIDSLayout(mriPath, validate=False)
+	artLayout = bids.layout.BIDSLayout(artPath, validate=False)
 
-		# Main paths
-		homePath = Path(homePath)
-		mriPath  = Path(mriPath)
-		artPath  = Path(artPath)
-
-		# -------------- 01 Set up layouts -------------- 
-		logpath   = homePath / "data_logs" / "bids"
-		logLayout = bids.layout.BIDSLayout(logpath, validate=False)
-		mriLayout = bids.layout.BIDSLayout(mriPath, validate=False)
-		artLayout = bids.layout.BIDSLayout(artPath, validate=False)
-		
-		# -------------- 02 Configuration -------------- 
-		log_conf  = grabber.define_grabconf(subID, sesID, "events", "tsv", task = task, acquisition = acqID, run = runID)
-		bold_conf = grabber.define_grabconf(subID, sesID, "bold", "nii.gz", task = task, acquisition = acqID, run = runID, space = space)
-		mask_conf = grabber.define_grabconf(subID, sesID, "mask", "nii.gz", task = task, acquisition = acqID, run = runID, space = space)
-		conf_conf  = grabber.define_grabconf(subID, sesID, "confounds", "txt", acquisition = acqID, run = runID)	
-		reg_conf = grabber.define_grabconf(subID, sesID, "regressors", "tsv", acquisition = acqID, run = runID)
-		movpar_conf = grabber.define_grabconf(subID, sesID, "movpar", "txt", acquisition = acqID, run = runID)
-		out_conf  = grabber.define_grabconf(subID, sesID, "outliers",  "txt", acquisition = acqID, run = runID)
-		T1w_conf  = grabber.define_grabconf(subID, anatID, "T1w",  "nii.gz")
-		T1w_to_MNI_conf = grabber.define_grabconf(subID, anatID, "xfm",  "h5")
-		boldref_to_T1w_conf  = grabber.define_grabconf(subID, anatID, "xfm",  "txt", acquisition = acqID)
-
-		# -------------- 03 Grabbing files --------------
-		log_object  = grabber.grab_BIDS_object(logpath, logLayout, log_conf)
-		bold_object = grabber.grab_BIDS_object(mriPath, mriLayout, bold_conf)
-		mask_object = grabber.grab_BIDS_object(mriPath, mriLayout, mask_conf)
-		conf_object = grabber.grab_BIDS_object(artPath, artLayout, conf_conf) # selected confounds
-		reg_object  = grabber.grab_BIDS_object(artPath, artLayout, reg_conf)  # only BIOPAC
-		movpar_path = movpar_object[0].path # only the trans & rot parameters
-		out_object    = grabber.grab_BIDS_object(artPath, artLayout, out_conf)  # motion outliers as detected by fMRIPrep
-		T1w_object    = grabber.grab_BIDS_object(mriPath, mriLayout, T1w_conf)
-		T1w_to_MNI_object      = grabber.grab_BIDS_object(mriPath, mriLayout, T1w_to_MNI_conf)
-		orig_to_boldref_object = grabber.grab_BIDS_object(mriPath, mriLayout, boldref_to_T1w_conf)
-		boldref_to_T1w_object  = grabber.grab_BIDS_object(mriPath, mriLayout, boldref_to_T1w_conf)
-
-		# -------------- 04 Verification & Warnings --------------
-		# Check for missing files
-		if len(log_object) == 0:
-			raise ValueError(f"No log file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}, run-{runID:02d}.")
-		if len(bold_object) == 0:
-			raise ValueError(f"No bold file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, space-{space}, acq-{acqID}, run-{runID:02d}.")
-		if len(mask_object) == 0:
-			raise ValueError(f"No mask file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, space-{space}, acq-{acqID}, run-{runID:02d}.")
-		if len(T1w_object) == 0:
-			raise ValueError(f"No T1w file found for sub-{subID:02d}, ses-{anatID:02d}.")
-		if len(conf_object) == 0:
-			raise ValueError(f"No confounds file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}, run-{runID:02d}.")
-		if len(reg_object) == 0:
-			warnings.warn(f"No TAPAS regressors file found for sub-{subID:02d}, ses-{sesID:02d}, acq-{acqID}, run-{runID:02d}.")
-		if len(movpar_object) == 0:
-			raise ValueError(f"No movement parameters file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}.")
-		if len(out_object) == 0:
-			raise ValueError(f"No outliers file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}, run-{runID:02d}.")
-		if len(T1w_to_MNI_object) == 0:
-			raise ValueError(f"No T1w to MNI transform file found sub-{subID:02d}, ses-{sesID:02d}, task-{task}, space-{space}, acq-{acqID}, run-{runID:02d}")
-		if len(orig_to_boldref_object) == 0 or len(boldref_to_T1w_object) == 0:
-			raise ValueError(f"No boldref to T1w transform files found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, space-{space}, acq-{acqID}, run-{runID:02d}")
-
-		# Check for multiple files (ambiguity)
-		if len(log_object) > 1:
-			raise ValueError(
-				f"Found more than one file:\n{log_object}."
-				"\nCheck your LOG folder and logfile import steps."
-				)
-		if len(bold_object) > 1 or len(mask_object) > 1:
-			raise ValueError(
-				"Found more than one file in one of the following\n:"
-				f"{bold_object}, or\n {mask_object}."
-				"\nPlease check your MRI folder and MRI data import steps."
-				)
-		if len(conf_object) > 1 or len(movpar_object) > 1 or len(out_object) > 1:
-			raise ValueError(
-				"Found more than one file in one of the following\n:"
-				f"{conf_object},\n {movpar_object}, or\n{out_object}."
-				"Check your PHYSIO folder and physiological data import steps."
-				)
-		if len(reg_object) > 1:
-			raise ValueError(
-				"Found more than one file in one of the following\n:"
-				f"{reg_object}."
-				"Check your TAPAS preprocessing and regressors estimation steps."
-				)
-
-		# Warnings for T1 and transform files
-		if len(T1w_object) > 1:
-			warnings.warn(
-				"Multiple anatomical files found: "
-				f"{[f'{Path(to).name}' for to in T1w_object]}\n"
-			)
-		if len(orig_to_boldref_object) > 1 or len(boldref_to_T1w_object) > 1:
-			warnings.warn(
-                "Multiple transformation files found: "
-                f"\n * orig_to_boldref: {[f'{Path(otbo).name}' for otbo in orig_to_boldref_object]} "
-                f"\n * boldref_to_T1w: {[f'{Path(btto).name}' for btto in boldref_to_T1w_object]}"
-            )
-		
-		# -------------- 05 Grabing filepaths and Updating --------------
-		log_path        = log_object[0].path
-		bold_path       = bold_object[0].path
-		mask_path       = mask_object[0].path
-		conf_path       = conf_object[0].path # selected confounds
-		movpar_path     = movpar_object[0].path
-		out_path        = out_object[0].path  # motion outliers as detected by fMRIPrep
-		T1w_to_MNI_path = T1w_to_MNI_object[1].path
-
-		# Print the anatomical file used
-		T1w_path = T1w_object[0].path
-		print(
-			f"\nThe selected space for the analysis is: {space}. "
-			f"\nThe anatomical file selected is: {Path(T1w_object[0]).name}."
-		)
-		
-		# Regressors tsv file only exists when including BIOPAC regressors
-		if len(reg_object) == 1:
-			reg_path = reg_object[0].path
-		else:
-			reg_path = []
-
-		# Take the correct transformation file
-		for otbo in orig_to_boldref_object:
-			if "from-orig_to-boldref" in str(otbo):
-				orig_to_boldref_path = otbo.path
-				print(f"\nFor from-orig_to-boldref selected: {Path(otbo).name}")
-
-		for btto in boldref_to_T1w_object:
-			if "from-boldref_to-T1w" in str(btto):
-				boldref_to_T1w_path = btto.path
-				print(f"\nFor from-boldref_to-T1w selected: {Path(btto).name}")
-
-		# Extract repetition time with PyBIDS methods [sec]
-		TR = bold_object[0].get_metadata()['RepetitionTime']
-		
-	else:
-		# Main paths
-		homePath = Path(homePath)
-		mriPath  = Path(mriPath)
-		artPath  = Path(artPath)
-
-		# -------------- 01 Set up layouts -------------- 
-		logpath   = homePath / "data_logs" / "bids"
-		logLayout = bids.layout.BIDSLayout(logpath, validate=False)
-		mriLayout = bids.layout.BIDSLayout(mriPath, validate=False)
-		artLayout = bids.layout.BIDSLayout(artPath, validate=False)
-		
-		# -------------- 02 Configuration -------------- 
-		log_conf  = grabber.define_grabconf(subID, sesID, "events", "tsv", task = task, acquisition = acqID)
-		bold_conf = grabber.define_grabconf(subID, sesID, "bold", "nii.gz", task = task, acquisition = acqID, space = space)
-		mask_conf = grabber.define_grabconf(subID, sesID, "mask", "nii.gz", task = task, acquisition = acqID, space = space)
-		conf_conf = grabber.define_grabconf(subID, sesID, "confounds", "txt", acquisition = acqID)	
-		reg_conf  = grabber.define_grabconf(subID, sesID, "regressors", "tsv", acquisition = acqID)
-		movpar_conf = grabber.define_grabconf(subID, sesID, "movpar", "txt", acquisition = acqID)
-		out_conf  = grabber.define_grabconf(subID, sesID, "outliers",  "txt", acquisition = acqID)
-		T1w_conf  = grabber.define_grabconf(subID, anatID, "T1w",  "nii.gz")
-		T1w_to_MNI_conf = grabber.define_grabconf(subID, anatID, "xfm",  "h5")
-		boldref_to_T1w_conf  = grabber.define_grabconf(subID, anatID, "xfm",  "txt", acquisition = acqID)
-
-		# -------------- 03 Grabbing files --------------
-		log_object   = grabber.grab_BIDS_object(logpath, logLayout, log_conf)
-		bold_object  = grabber.grab_BIDS_object(mriPath, mriLayout, bold_conf)
-		mask_object  = grabber.grab_BIDS_object(mriPath, mriLayout, mask_conf)
-		conf_object  = grabber.grab_BIDS_object(artPath, artLayout, conf_conf)    # selected confounds
-		reg_object   = grabber.grab_BIDS_object(artPath, artLayout, reg_conf)     # only BIOPAC
-		movpar_object = grabber.grab_BIDS_object(artPath, artLayout, movpar_conf) # only the trans & rot parameters
-		out_object    = grabber.grab_BIDS_object(artPath, artLayout, out_conf)    # motion outliers as detected by fMRIPrep
-		T1w_object    = grabber.grab_BIDS_object(mriPath, mriLayout, T1w_conf)
-		T1w_to_MNI_object      = grabber.grab_BIDS_object(mriPath, mriLayout, T1w_to_MNI_conf)
-		orig_to_boldref_object = grabber.grab_BIDS_object(mriPath, mriLayout, boldref_to_T1w_conf)
-		boldref_to_T1w_object  = grabber.grab_BIDS_object(mriPath, mriLayout, boldref_to_T1w_conf)
-
-		# -------------- 04 Verification & Warnings --------------
-		# Check for missing files
-		if len(log_object) == 0:
-			raise ValueError(f"No log file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}.")
-		if len(bold_object) == 0:
-			raise ValueError(f"No bold file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, space-{space}, acq-{acqID}.")
-		if len(mask_object) == 0:
-			raise ValueError(f"No mask file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, space-{space}, acq-{acqID}.")
-		if len(T1w_object) == 0:
-			raise ValueError(f"No T1w file found for sub-{subID:02d}, ses-{anatID:02d}.")
-		if len(conf_object) == 0:
-			raise ValueError(f"No confounds file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}.")
-		if len(reg_object) == 0:
-			warnings.warn(f"No TAPAS regressors file found for sub-{subID:02d}, ses-{sesID:02d}, acq-{acqID}.")
-		if len(movpar_object) == 0:
-			raise ValueError(f"No movement parameters file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}.")
-		if len(out_object) == 0:
-			raise ValueError(f"No outliers file found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}.")
-		if len(T1w_to_MNI_object) == 0:
-			raise ValueError(f"No T1w to MNI transform file found sub-{subID:02d}, ses-{sesID:02d}, task-{task}, space-{space}, acq-{acqID}")
-		if len(orig_to_boldref_object) == 0 or len(boldref_to_T1w_object) == 0:
-			raise ValueError(f"No boldref to T1w transform files found for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, space-{space}, acq-{acqID}")
-
-		# Check for multiple files (ambiguity)
-		if len(log_object) > 1:
-			raise ValueError(
-				f"Found more than one file:\n{log_object}."
-				"\nCheck your LOG folder and logfile import steps."
-				)
-		if len(bold_object) > 1 or len(mask_object) > 1:
-			raise ValueError(
-				"Found more than one file in one of the following\n:"
-				f"{bold_object}, or\n {mask_object}."
-				"\n\nPlease check your MRI folder and MRI data import steps."
-				)
-		if len(conf_object) > 1 or len(movpar_object) > 1 or len(out_object) > 1:
-			raise ValueError(
-				"Found more than one file in one of the following\n:"
-				f"{conf_object},\n{movpar_object}, or\n{out_object}."
-				"Check your PHYSIO folder and physiological data import steps."
-				)
-		if len(reg_object) > 1:
-			raise ValueError(
-				"Found more than one file in one of the following\n:"
-				f"{reg_object}."
-				"Check your TAPAS preprocessing and regressors estimation steps."
-				)
-		
-		# Warnings for T1 and transform files
-		if len(T1w_object) > 1:
-			warnings.warn(
-				"Multiple anatomical files found: "
-				f"{[f'{Path(to).name}' for to in T1w_object]}"
-			)
-		if len(orig_to_boldref_object) > 1 or len(boldref_to_T1w_object) > 1:
-			warnings.warn(
-                "Multiple transformation files found: "
-                f"\n * orig_to_boldref: {[f'{Path(otbo).name}' for otbo in orig_to_boldref_object]}"
-                f"\n * boldref_to_T1w: {[f'{Path(btto).name}' for btto in boldref_to_T1w_object]}"
-            )
-		
-		# -------------- 05 Grabing filepaths and Updating --------------
-		log_path        = log_object[0].path
-		bold_path       = bold_object[0].path
-		mask_path       = mask_object[0].path
-		conf_path       = conf_object[0].path # selected confonuds
-		movpar_path     = movpar_object[0].path # only the trans & rot parameters
-		out_path        = out_object[0].path    # motion outliers as detected by fMRIPrep
-		T1w_to_MNI_path = T1w_to_MNI_object[1].path
-
-		# Print the anatomical file used
-		T1w_path = T1w_object[0].path
-		print(
-			f"\nThe selected space for the analysis is: {space}. "
-			f"\nThe anatomical file selected is: {Path(T1w_object[0]).name}."
-		)
-
-		# Regressors tsv file only exists when including BIOPAC regressors
-		if len(reg_object) == 1:
-			reg_path = reg_object[0].path
-		else:
-			reg_path = []
-		
-		# Take the correct transformation file
-		for otbo in orig_to_boldref_object:
-			if "from-orig_to-boldref" in str(otbo):
-				orig_to_boldref_path = otbo.path
-				print(f"\nFor from-orig_to-boldref selected: {Path(otbo).name}")
-
-		for btto in boldref_to_T1w_object:
-			if "from-boldref_to-T1w" in str(btto):
-				boldref_to_T1w_path = btto.path
-				print(f"\nFor from-boldref_to-T1w selected: {Path(btto).name}")
-
-		# Extract repetition time with PyBIDS methods [sec]
-		TR = bold_object[0].get_metadata()['RepetitionTime']
+	# Determine if run and functional acquisition identifiers are used
+	runID = run	if bool(run) else None
+	acqID = acq if bool(acq) else None
 	
-	return log_path, bold_path, mask_path, conf_path, reg_path, movpar_path, out_path, T1w_path, T1w_to_MNI_path, orig_to_boldref_path, boldref_to_T1w_path, TR
+	# -------------- 02 Configuration -------------- 
+	log_conf = grabber.define_grabconf(subID, sesID, "events", "tsv", task=task, acquisition=acqID, run=runID)
+	bold_conf = grabber.define_grabconf(subID, sesID, "bold", "nii.gz", task=task, acquisition=acqID, run=runID, space=space)
+	mask_conf = grabber.define_grabconf(subID, sesID, "mask", "nii.gz", task=task, acquisition=acqID, run=runID, space=space)
+	conf_conf = grabber.define_grabconf(subID, sesID, "confounds", "txt", task=task, acquisition=acqID, run=runID)	
+	reg_conf = grabber.define_grabconf(subID, sesID, "regressors", "tsv", task=task, acquisition=acqID, run=runID)
+	movpar_conf = grabber.define_grabconf(subID, sesID, "movpar", "txt", task=task, acquisition=acqID, run=runID)
+	out_conf = grabber.define_grabconf(subID, sesID, "outliers",  "txt", task=task, acquisition=acqID, run=runID)
+	T1w_conf = grabber.define_grabconf(subID, anatID, "T1w",  "nii.gz")
+	h5_trans_conf = grabber.define_grabconf(subID, anatID, "xfm",  "h5")
+	txt_trans_conf = grabber.define_grabconf(subID, anatID, "xfm",  "txt", task=task, acquisition=acqID)
+
+	# -------------- 03 Grabbing files --------------
+	log_object = grabber.grab_BIDS_object(logpath, logLayout, log_conf)
+	bold_object = grabber.grab_BIDS_object(mriPath, mriLayout, bold_conf)
+	mask_object = grabber.grab_BIDS_object(mriPath, mriLayout, mask_conf)
+	conf_object = grabber.grab_BIDS_object(artPath, artLayout, conf_conf) # selected confounds
+	reg_object = grabber.grab_BIDS_object(artPath, artLayout, reg_conf)   # only BIOPAC
+	movpar_object = grabber.grab_BIDS_object(artPath, artLayout, movpar_conf) # only the trans & rot parameters
+	out_object = grabber.grab_BIDS_object(artPath, artLayout, out_conf) # motion outliers as detected by fMRIPrep
+	T1w_object = grabber.grab_BIDS_object(mriPath, mriLayout, T1w_conf)
+	T1w_to_MNI_object = grabber.grab_BIDS_object(mriPath, mriLayout, h5_trans_conf)
+	func_trans_object = grabber.grab_BIDS_object(mriPath, mriLayout, txt_trans_conf)
+
+	# -------------- 04 Verification & Warnings --------------
+	space_str = f", space-{space}" if space else ""
+	task_str = f", task-{task}" if task else ""
+	acq_str = f", acq-{acqID}" if bool(acq) else ""
+	run_str = f", run-{runID:02d}" if bool(run) else ""
+	extra_str = f"{task_str}, {space_str}, {acq_str}, {run_str}"
+
+	# Missing file checks
+	check_object(log_object, "log file", subID, sesID, extra_str, warning_only=True)
+	check_object(bold_object, "bold file", subID, sesID, extra_str, warning_only=True)
+	check_object(mask_object, "mask file", subID, sesID, extra_str, warning_only=True)
+	check_object(T1w_object, "T1w file", subID, anatID)
+	check_object(conf_object, "confounds file", subID, sesID, extra_str)
+	check_object(reg_object, "TAPAS regressors file", subID, sesID, f"{acq_str}, {run_str}", warning_only=True)
+	check_object(movpar_object, "movement parameters file", subID, sesID, extra_str)
+	check_object(out_object, "outliers file", subID, sesID, extra_str)
+	check_object(T1w_to_MNI_object, "T1w to MNI transform file", subID, sesID, extra_str)
+
+	# Transform files
+	if len(func_trans_object) == 0:
+		raise ValueError(
+			f"No orig_to_boldref or boldref_to_T1w transform files found for sub-{subID:02d}, ses-{sesID:02d}{extra_str}"
+		)
+
+	# Warnings for multiple files
+	if len(T1w_object) > 1:
+		warnings.warn(f"Multiple anatomical files found: {[Path(to).name for to in T1w_object]}")
+
+	if len(func_trans_object) > 1:
+		names_orig = [Path(otbo).name for otbo in func_trans_object]
+		names_bold = [Path(btto).name for btto in func_trans_object]
+		warnings.warn(
+			f"Multiple transformation files found: \n"
+			f" * orig_to_boldref: {names_orig} \n\n"
+			f" * boldref_to_T1w: {names_bold}"
+		)
+
+	# -------------- 05 Grabing filepaths and Updating --------------
+	log_paths    = [lo.path for lo in log_object]
+	bold_paths   = [bo.path for bo in bold_object]
+	mask_paths   = [mo.path for mo in mask_object]
+	conf_paths   = [co.path for co in conf_object] # selected confounds
+	movpar_paths = [mpo.path for mpo in movpar_object]
+	out_paths    = [oo.path for oo in out_object]  # motion outliers as detected by fMRIPrep
+
+	# Select the anatomical file and print selection to terminal
+	T1w_path = T1w_object[0].path
+	warnings.warn(
+		f"\nThe selected space for the analysis is: {space}. "
+		f"\nThe anatomical file selected is: {Path(T1w_object[0]).name}."
+	)
+
+	# Regressors tsv file only exists when including BIOPAC regressors
+	if len(reg_object):
+		reg_paths = [ro.path for ro in reg_object]
+	else:
+		reg_paths = []
+
+	# Transformation paths
+	T1w_to_MNI_path = []
+	for ttMNI in T1w_to_MNI_object:
+		if "from-T1w_to-MNI" in str(ttMNI):
+			T1w_to_MNI_path = ttMNI.path
+			print(f"\nFor from-T1w_to-MNI selected: {Path(ttMNI).name}")
+
+	orig_to_boldref_paths = []
+	for otbo in func_trans_object:
+		if "from-orig_to-boldref" in str(otbo):
+			orig_to_boldref_paths.append(otbo.path)
+			print(f"\nFor from-orig_to-boldref selected: {Path(otbo).name}")
+
+	boldref_to_T1w_paths = []
+	for btto in func_trans_object:
+		if "from-boldref_to-T1w" in str(btto):
+			boldref_to_T1w_paths.append(btto.path)
+			print(f"\nFor from-boldref_to-T1w selected: {Path(btto).name}")
+
+	# Extract repetition time with PyBIDS methods [sec]
+	TRs = [bo.get_metadata()['RepetitionTime'] for bo in bold_object]
+		
+	return log_paths, bold_paths, mask_paths, conf_paths, reg_paths, movpar_paths, out_paths, T1w_path, T1w_to_MNI_path, orig_to_boldref_paths, boldref_to_T1w_paths, TRs

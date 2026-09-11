@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <10-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <11-09-2026 m.utrosa@bcbl.eu>
 '''
 fMRI: GLM model fitting with fixed effects
 
@@ -76,24 +76,24 @@ infohandle = pe.Node(
             "homePath", 
             "mriPath",
             "artPath",
-            "space",
-            "acqID", 
+            "space", 
             "task",
+            "acq",
             "run"
         ],
         output_names = [
-            "log_path",
-            "bold_path", 
-            "mask_path", 
-            "conf_path",
-            "reg_path", # empty list (no path to a regressors file) if BIOPAC off (no TAPAS)
-            "movpar_path",
-            "out_path", 
+            "log_paths",
+            "bold_paths", 
+            "mask_paths", 
+            "conf_paths",
+            "reg_paths", # empty list (no path to a regressors file) if BIOPAC off (no TAPAS)
+            "movpar_paths",
+            "out_paths", 
             "T1w_path", 
             "T1w_to_MNI_path",
-            "orig_to_boldref_path",
-            "boldref_to_T1w_path", 
-            "TR"
+            "orig_to_boldref_paths",
+            "boldref_to_T1w_paths", 
+            "TRs"
         ],
         function = grab_objects),
 name = "infohandle"
@@ -223,8 +223,8 @@ timDev22.base_dir = str(c.workDir)
 # Specify how the analysis iterates through the data
 timDev22.connect([(infosource, infohandle, [
     ("subID", "subID"),
-	("sesID", "sesID"),
-	("acqID", "acqID")
+	("sesID", "sesID")
+	# ("acqID", "acqID")
     ])])
 
 # Parse the logfiles into bunches

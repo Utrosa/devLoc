@@ -177,12 +177,12 @@ def filter_artifacts(homePath, mriPath, physioPath, subID, sesID, task, denoisin
 				df_final = df_final.fillna(0)
 			
 			# Save movement parameters as a text file.
-			movpar_filename = f"sub-{subID:02d}_ses-{sesID:02d}_acq-{acqID}_movpar.txt"
+			movpar_filename = f"sub-{subID:02d}_ses-{sesID:02d}_task-{task}_acq-{acqID}_movpar.txt"
 			movpar_out      = outputPath / movpar_filename
 			df_movpar.to_csv(movpar_out, sep=' ', header=False, index=False,)
 			
 			# Save confounds as a text file.		 
-			confound_filename = f"sub-{subID:02d}_ses-{sesID:02d}_acq-{acqID}_confounds.txt"
+			confound_filename = f"sub-{subID:02d}_ses-{sesID:02d}_task-{task}_acq-{acqID}_confounds.txt"
 			confounds_out     = outputPath / confound_filename
 			df_final.to_csv(confounds_out, sep=' ', header=False, index=False,)
 
@@ -202,7 +202,7 @@ def filter_artifacts(homePath, mriPath, physioPath, subID, sesID, task, denoisin
 			outlier_columns[acqID] = outlier_cols
 			
 			# Save outliers as a text file
-			outlier_filename = f"sub-{subID:02d}_ses-{sesID:02d}_acq-{acqID}_outliers.txt"
+			outlier_filename = f"sub-{subID:02d}_ses-{sesID:02d}_task-{task}_acq-{acqID}_outliers.txt"
 			outlier_out      = outputPath / outlier_filename
 			with open(outlier_out, 'w') as f:
 				f.write('\n'.join(map(str, outlier_vols)))
