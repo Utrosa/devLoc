@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <10-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <11-09-2026 m.utrosa@bcbl.eu>
 '''
 Defines functions to create SPM design matrices,
 needed for NiPype workflow. These matrices have
@@ -15,9 +15,8 @@ The difference between timDev and timDevCat:
 
 TODO: systemize arguments -- can they all have the same name, so it's easier
 to adapt the analysis for a different design?
-TODO: why do some designs and (timDevCat, localizer) take only one log file
-as input and other a list of log paths?
-TODO: extend regressors for freqDev (not for my projects)
+TODO: extend regressors for freqDev (not for my project)
+TODO: all designs could return a dict so we have a mapping between log and bunch
 
 '''
 def localizer(logfilepath):
@@ -93,7 +92,7 @@ def timDev(logfilepaths, absolute):
     Zero is not included as a timing deviancy condition.
 
     Parameters:
-        logfilepath (str): Path to the log file.
+        logfilepaths (list): List of paths (str) to the log file.
         absolute: If True, timing deviants are pooled as absolute values. 
                   If False, separate conditions for negative and positive values.
 
@@ -188,7 +187,6 @@ def timDev(logfilepaths, absolute):
         # Append to list
         design_info_list.append(design_info)
     
-
     # Print an example of the Bunch conditions to terminal
     warnings.warn(
         "\nThe conditions in the bunch of the design `timDev` are:"
@@ -343,7 +341,7 @@ def freqDev(logfilepaths):
     Frequency conditions are either 0 (standard) or 1 (deviant).
 
     Parameters:
-        logfilepath (str): Path to the log file with task == "freqDev"
+        logfilepaths (list): List of paths (str) to the log file with freqDev task
 
     Returns:
         list: A list of Bunch objects containing conditions, onsets, and durations.
@@ -418,12 +416,12 @@ def freqDev(logfilepaths):
 
     return design_info_list
 
-def timfreqDev(time_log, time_binary, time_abs, time_groups, add_freqDev):
+def timfreqDev(time_logs, time_binary, time_abs, time_groups, add_freqDev):
     """
     Joins the events of timDev and freqDev tasks from timDev log file. 
 
     Parameters:
-        time_log:    path to the log files for timDev task.
+        time_logs (list): paths to the log files for timDev task.
         time_binary: If True, all timing deviants are grouped into a single condition,
                      ignoring magnitude and direction. Defaults to False.
         time_abs:    If True, timing deviants are pooled as abolute values. 
@@ -435,197 +433,208 @@ def timfreqDev(time_log, time_binary, time_abs, time_groups, add_freqDev):
         list: A Bunch object containing conditions, onsets, and durations.
     """
     import csv, warnings
+    from pathlib import Path
     from nipype.interfaces.base import Bunch
-    
-    # Nest timDevCat function which takes a single log file as input
-    def timDevCat1(time_log, binary, absolute, groups):
-        """
-        Parse logfiles into design matrix for the 'timDev' paradigm. 
-        Timing deviancy conditions can be taken as absolute or relative values.
-        Zero is not included as a timing deviancy condition.
 
-        Parameters:
-            time_log (str): Path to the log file.
-            binary:    If True, all timing deviants are grouped into a single condition,
-                       ignoring magnitude and direction. 
-            absolute:  If True, timing deviants are pooled as abolute values. 
-                       If False, separate conditions for negative and positive values.
-            groups:    A sorted dictionary of upper bounds (keys) and names for the timing 
-                       deviants groups they create (values). False means no grouping.
-        Returns:
-            list: A Bunch object containing conditions, onsets, and durations.
-        """
-        from utils import find_dev_group
-        # Initialize a dictionary to store that info per timing deviation
-        events_by_dev = {}
+    timfreq_bunch_dict = {}
+    for time_log in time_logs:
 
-        # Get group values and names, if grouping applies to timing deviants 
-        if groups:
-            group_values = list(groups.keys())
-            group_names  = list(groups.values())
+        # Nest timDevCat function which takes a single log file as input
+        def timDevCat1(time_log, binary, absolute, groups):
+            """
+            Parse logfile into design matrix for the 'timDev' paradigm. 
+            Timing deviancy conditions can be taken as absolute or relative values.
+            Zero is not included as a timing deviancy condition.
 
-        # Read info on stimuli onset, duration and trial type from events.tsv file
-        with open(time_log, 'r') as logfile:
+            Parameters:
+                time_log: path to the log file.
+                binary:    If True, all timing deviants are grouped into a single condition,
+                           ignoring magnitude and direction. 
+                absolute:  If True, timing deviants are pooled as abolute values. 
+                           If False, separate conditions for negative and positive values.
+                groups:    A sorted dictionary of upper bounds (keys) and names for the timing 
+                           deviants groups they create (values). False means no grouping.
+            Returns:
+                list: A Bunch object containing conditions, onsets, and durations.
+            """
+            from utils import find_dev_group
 
-            # Skip header row
-            next(logfile)
-
-            # Auto-detect delimiter (should be tab)
-            sample = logfile.read(3000)
-            logfile.seek(0)
-            dialect = csv.Sniffer().sniff(sample, delimiters=[";", "\t", ","])
+            # Get group values and names, if grouping applies to timing deviants 
+            if groups:
+                group_values = list(groups.keys())
+                group_names  = list(groups.values())
             
-            # Read the logfile
-            logTsv  = csv.reader(logfile, dialect)
-            next(logTsv)  # Skip header again
+            # Initialize a dictionary to store that info per timing deviation
+            events_by_dev = {}
+            
+            # Read info on stimuli onset, duration and trial type from events.tsv file
+            with open(time_log, 'r') as logfile:
 
-            for line in logTsv:
+                # Skip header row
+                next(logfile)
 
-                # Get event's onset and duration
-                onset = float(line[0])
-                duration = float(line[1])
-                event = {'onset': onset, 'duration': duration}
+                # Auto-detect delimiter (should be tab)
+                sample = logfile.read(3000)
+                logfile.seek(0)
+                dialect = csv.Sniffer().sniff(sample, delimiters=[";", "\t", ","])
                 
-                # Get stimulus type
-                deviation_str = line[2]
-                
-                # Initialize deviation to a default value (e.g., None)
-                deviation = None
+                # Read the logfile
+                logTsv  = csv.reader(logfile, dialect)
+                next(logTsv)  # Skip header again
 
-                # Does the current row correspond to a time deviant tone?
-                if "delta" in deviation_str:
-                    if binary:
-                        deviation = "timDev"
-                    else:
-                        # Strip to get the delta
-                        delta_str = deviation_str.split("delta-")[1]
-                        delta = delta_str.split("ms")[0]
-                        
-                        # Figure out the direction: positive or negative delta?
-                        # Positive deltas
-                        if "p" in delta:
-                            pD = delta.strip("p")
+                for line in logTsv:
 
-                            if groups:
-                                deviation = find_dev_group(int(pD), groups)
-                            else:
-                                deviation = int(pD)
-                        
-                        # Negative deltas                   
-                        elif "n" in delta:
-                            nD = delta.strip("n")
-
-                            if absolute:
-                                if groups:
-                                    deviation = find_dev_group(int(nD), groups)
-                                else:
-                                    deviation = int(nD)
-                            else:
-                                if groups:
-                                    deviation = find_dev_group(-int(nD), groups)
-                                else:
-                                    deviation = -int(nD)
-                else:
+                    # Get event's onset and duration
+                    onset = float(line[0])
+                    duration = float(line[1])
+                    event = {'onset': onset, 'duration': duration}
+                    
+                    # Get stimulus type
+                    deviation_str = line[2]
+                    
+                    # Initialize deviation to a default value (e.g., None)
                     deviation = None
 
-                # Initialize list for this deviation
-                if deviation is not None:
-                    if deviation not in events_by_dev:
-                        events_by_dev[deviation] = []
-                    events_by_dev[deviation].append(event)
+                    # Does the current row correspond to a time deviant tone?
+                    if "delta" in deviation_str:
+                        if binary:
+                            deviation = "timDev"
+                        else:
+                            # Strip to get the delta
+                            delta_str = deviation_str.split("delta-")[1]
+                            delta = delta_str.split("ms")[0]
+                            
+                            # Figure out the direction: positive or negative delta?
+                            # Positive deltas
+                            if "p" in delta:
+                                pD = delta.strip("p")
 
-        # Sort deviations from negative to positive
-        # Important to ensure consistent order in the conditions list
-        sorted_deviations = sorted(events_by_dev.keys())
+                                if groups:
+                                    deviation = find_dev_group(int(pD), groups)
+                                else:
+                                    deviation = int(pD)
+                            
+                            # Negative deltas                   
+                            elif "n" in delta:
+                                nD = delta.strip("n")
 
-        # Create conditions (a list of strings)
-        conditions = [str(i) for i in sorted_deviations]
+                                if absolute:
+                                    if groups:
+                                        deviation = find_dev_group(int(nD), groups)
+                                    else:
+                                        deviation = int(nD)
+                                else:
+                                    if groups:
+                                        deviation = find_dev_group(-int(nD), groups)
+                                    else:
+                                        deviation = -int(nD)
+                    else:
+                        deviation = None
 
-        # Extract onsets and durations in the same order as conditions
-        onsets = []
-        durations = []
-        for dev in sorted_deviations:
-            onsets.append([e['onset'] for e in events_by_dev[dev]])
-            durations.append([e['duration'] for e in events_by_dev[dev]])
+                    # Initialize list for this deviation
+                    if deviation is not None:
+                        if deviation not in events_by_dev:
+                            events_by_dev[deviation] = []
+                        events_by_dev[deviation].append(event)
 
-        design_info = Bunch(
-            conditions=conditions,
-            onsets=onsets,
-            durations=durations
-        )
-        return design_info
-    
-    # Create timing deviancy Bunch 
-    time_bunch = timDevCat1(time_log, time_groups, time_binary, time_abs)
+            # Sort deviations from negative to positive
+            # Important to ensure consistent order in the conditions list
+            sorted_deviations = sorted(events_by_dev.keys())
 
-    # Create frequency deviancy Nunch
-    if add_freqDev:
+            # Create conditions (a list of strings)
+            conditions = [str(i) for i in sorted_deviations]
+
+            # Extract onsets and durations in the same order as conditions
+            onsets = []
+            durations = []
+            for dev in sorted_deviations:
+                onsets.append([e['onset'] for e in events_by_dev[dev]])
+                durations.append([e['duration'] for e in events_by_dev[dev]])
+
+            design_info = Bunch(
+                conditions=conditions,
+                onsets=onsets,
+                durations=durations
+            )
+            
+            return design_info
         
-        # Get info on stimuli onset, duration and trial type from events.tsv file
-        # Initialize a dictionary to store that info per timing deviation
-        events_by_freq = {'freqDev': []}
+        # Create timing deviancy Bunch 
+        time_bunch = timDevCat1(time_log, time_groups, time_binary, time_abs)
 
-        with open(time_log, 'r') as logfile:
+        # Create frequency deviancy Bunch
+        if add_freqDev:
             
-            next(logfile)  # Skip header row
+            # Get info on stimuli onset, duration and trial type from events.tsv file
+            # Initialize a dictionary to store that info per timing deviation
+            events_by_freq = {'freqDev': []}
 
-            # Auto-detect delimiter (should be tab)
-            sample  = logfile.read(3000); logfile.seek(0)
-            dialect = csv.Sniffer().sniff(sample, delimiters=[";", "\t", ","])
-            
-            # Read the logfile
-            logTsv  = csv.reader(logfile, dialect)
-            next(logTsv)  # Skip header again
-
-            for line in logTsv:
-
-                # Get events
-                onset = float(line[0])
-                duration = float(line[1])
-                event = {'onset': onset, 'duration': duration}
+            with open(time_log, 'r') as logfile:
                 
-                # Get trial type
-                frequency_str = line[2]
+                next(logfile)  # Skip header row
 
-                # Is it a frequency deviant or not?
-                if "type-fDev" in frequency_str:
-                    frequency = "freqDev"
-                else:
-                    frequency = False
+                # Auto-detect delimiter (should be tab)
+                sample  = logfile.read(3000); logfile.seek(0)
+                dialect = csv.Sniffer().sniff(sample, delimiters=[";", "\t", ","])
+                
+                # Read the logfile
+                logTsv  = csv.reader(logfile, dialect)
+                next(logTsv)  # Skip header again
 
-                # Add only frequency deviants as events
-                if frequency:
-                    events_by_freq[frequency].append(event)
+                for line in logTsv:
 
-        # Create conditions
-        conditions = [i for i in events_by_freq.keys()]
+                    # Get events
+                    onset = float(line[0])
+                    duration = float(line[1])
+                    event = {'onset': onset, 'duration': duration}
+                    
+                    # Get trial type
+                    frequency_str = line[2]
 
-        # Extract onsets and durations in the same order as conditions
-        onsets = []
-        durations = []
-        for freq in events_by_freq.keys():
-            onsets.append([e['onset'] for e in events_by_freq[freq]])
-            durations.append([e['duration'] for e in events_by_freq[freq]])
+                    # Is it a frequency deviant or not?
+                    if "type-fDev" in frequency_str:
+                        frequency = "freqDev"
+                    else:
+                        frequency = False
 
-        freq_bunch = Bunch(
-            conditions=conditions,
-            onsets=onsets,
-            durations=durations
+                    # Add only frequency deviants as events
+                    if frequency:
+                        events_by_freq[frequency].append(event)
+
+            # Create conditions
+            conditions = [i for i in events_by_freq.keys()]
+
+            # Extract onsets and durations in the same order as conditions
+            onsets = []
+            durations = []
+            for freq in events_by_freq.keys():
+                onsets.append([e['onset'] for e in events_by_freq[freq]])
+                durations.append([e['duration'] for e in events_by_freq[freq]])
+
+            freq_bunch = Bunch(
+                conditions=conditions,
+                onsets=onsets,
+                durations=durations
+            )
+
+            # Join the timing and frequency deviancy Bunch objects
+            timfreq_bunch = Bunch(
+                conditions=time_bunch.conditions + freq_bunch.conditions,
+                onsets=time_bunch.onsets + freq_bunch.onsets,
+                durations=time_bunch.durations + freq_bunch.durations
+            )
+        else:
+            timfreq_bunch = time_bunch
+
+        # Append to the list of Bunch objects
+        timfreq_bunch_dict[Path(time_log).stem] = timfreq_bunch
+
+        # Print an example of the Bunch conditions to terminal
+        first_key = next(iter(timfreq_bunch_dict))
+        first_value = timfreq_bunch_dict[first_key]
+        print(
+            f"\nThe Bunch conditions of `timfreqDev` design for {first_key} are:"
+            f"\n{first_value.conditions}\n"
         )
 
-        # Join the timing and frequency deviancy Bunch objects
-        timfreq_bunch = [Bunch(
-            conditions=time_bunch.conditions + freq_bunch.conditions,
-            onsets=time_bunch.onsets + freq_bunch.onsets,
-            durations=time_bunch.durations + freq_bunch.durations
-        )]
-    else:
-        timfreq_bunch = time_bunch
-
-    # Print an example of the Bunch conditions to terminal
-    warnings.warn(
-        "\nThe conditions in the bunch of the design `timfreqDev` are:"
-        f"\n{timfreq_bunch[0].conditions}\n"
-    )
-
-    return timfreq_bunch
+    return timfreq_bunch_dict

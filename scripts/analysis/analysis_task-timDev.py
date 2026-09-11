@@ -27,7 +27,8 @@ from utils import add_nuisance
 # -------------------------------------------------------------------------------------------------
 # 01. Specify helper nodes
 # -------------------------------------------------------------------------------------------------
-# Infosource: set up a function-free node to iterate over the list of acquisition names.
+# Infosource: set up a function-free node to iterate over subjects and exp. sessions.
+# Acquistions are concatenated
 # The Identity Interface allows to create Nodes that only work with strings (parameters)!
 infosource = pe.Node(
     IdentityInterface(fields = ['subID', 'sesID']),
@@ -104,8 +105,6 @@ infohandle.inputs.mriPath  = str(c.mriPath)
 infohandle.inputs.artPath  = str(c.artPath)
 infohandle.inputs.space    = c.space
 infohandle.inputs.task     = c.task
-infohandle.inputs.run      = False # Relevant for grabbing objects if "run" present in BIDS filenames
-
 # -------------------------------------------------------------------------------------------------
 # 02. Additional preprocessing nodes: smoothing and outlier detection
 # -------------------------------------------------------------------------------------------------
@@ -148,8 +147,8 @@ if c.artDetect:
 # Create a Bunch object by parsing all event files: timDev & freqDev are separx<wate Bunch objects.
 bunch_log = pe.Node(
     Function(
-        input_names  = ["time_log", "time_binary", "time_abs", "time_groups", "add_freqDev"],
-        output_names = ["timfreq_bunch"],
+        input_names  = ["time_logs", "time_binary", "time_abs", "time_groups", "add_freqDev"],
+        output_names = ["timfreq_bunch_list"],
         function = timfreqDev
     ),
     name = "bunch_log"
@@ -224,21 +223,20 @@ timDev22.base_dir = str(c.workDir)
 timDev22.connect([(infosource, infohandle, [
     ("subID", "subID"),
 	("sesID", "sesID")
-	# ("acqID", "acqID")
     ])])
 
 # Parse the logfiles into bunches
 timDev22.connect([
-    (infohandle, bunch_log, [("log_path", "time_log")]),
-    (infohandle, bunch_reg, [("reg_path", "confounds_path")]) # reg_path: only exists when including BIOPAC
+    (infohandle, bunch_log, [("log_paths", "time_logs")]),
+    (infohandle, bunch_reg, [("reg_paths", "confounds_path")]) # reg_path: only exists when including BIOPAC
 ])
 
 timDev22.connect([
-    (bunch_log, bunch_reg, [("timfreq_bunch", "bunch")])
+    (bunch_log, bunch_reg, [("timfreq_bunch_list", "bunch")])
 ])
 
 # Unzip bold files
-timDev22.connect([(infohandle, unzip, [("bold_path", "in_file")])])
+timDev22.connect([(infohandle, unzip, [("bold_paths", "in_file")])])
 
 # Model specs
 if c.smoothing is not None:
@@ -255,9 +253,9 @@ if c.artDetect:
     
     # Estimate motion outliers
     timDev22.connect([(infohandle, art_detect, [
-            ("mask_path", "mask_file"),
-            ("movpar_path", "realignment_parameters"), # Realign (rot & trans) goes here
-            ("bold_path", "realigned_files") # Realigned functional data files
+            ("mask_paths", "mask_file"),
+            ("movpar_paths", "realignment_parameters"), # Realign (rot & trans) goes here
+            ("bold_paths", "realigned_files") # Realigned functional data files
             ])])
 
     # Connect to modeler
@@ -265,19 +263,19 @@ if c.artDetect:
 else:
     timDev22.connect([
         (infohandle, modeler, [
-            ("out_path", "outlier_files"), # outliers.txt created by `filer_artifacts` function
-            ("conf_path", "realignment_parameters")])])
+            ("out_paths", "outlier_files"), # outliers.txt created by `filer_artifacts` function
+            ("conf_paths", "realignment_parameters")])])
 
 # Connect to modeler
 timDev22.connect([
-    (infohandle, modeler, [("TR", "time_repetition")]),
+    (infohandle, modeler, [("TRs", "time_repetition")]),
     (bunch_reg, modeler, [("design_bunch", "subject_info")])
 ])
 
 # Design the matrix
 timDev22.connect([
     (modeler, designer, [("session_info", "session_info")]),
-    (infohandle, designer, [("TR", "interscan_interval")])])
+    (infohandle, designer, [("TRs", "interscan_interval")])])
 
 # Estimate
 timDev22.connect([(designer, estimator, [("spm_mat_file", "spm_mat_file")])])

@@ -4,33 +4,6 @@
 Grabs objects needed for other scripts.
 Grabs functional and anatomical files in the specified space.
 '''
-def check_object(obj, name, sub, ses, extra_params="", warning_only=False):
-    """
-    Raises a ValueError for missing or ambiguous files.
-
-    Args:
-        obj (list): The list of file objects to validate.
-        name (str): A descriptive name for the file type.
-        sub (int): The subject identifier.
-        ses (str): The session identifier.
-        extra_params (str): Additional context parameters to append to the message.
-        warning_only (bool): If True, issue a warning instead of raising an error.
-    """
-    import warnings
-    count = len(obj)
-
-    # Check for missing values
-    if count == 0:
-        msg = f"No {name} found for sub-{sub:02d}, ses-{ses:02d}, {extra_params}."
-        if warning_only:
-            warnings.warn(msg)
-        else:
-            raise ValueError(msg)
-	
-	# Check which files are found as a group if more than one file found   
-    elif count > 1:
-        msg = f"Found more than one {name}:\n{obj}.\nPlease verify your file-grabbing inputs."
-        warnings.warn(msg)
 
 def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, task, acq=None, run=None):
 	"""
@@ -65,6 +38,34 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, task, 
 	import warnings
 	from pathlib import Path	
 
+	def check_object(obj, name, sub, ses, extra_params="", warning_only=False):
+	    """
+	    Raises a ValueError for missing or ambiguous files.
+
+	    Args:
+	        obj (list): The list of file objects to validate.
+	        name (str): A descriptive name for the file type.
+	        sub (int): The subject identifier.
+	        ses (str): The session identifier.
+	        extra_params (str): Additional context parameters to append to the message.
+	        warning_only (bool): If True, issue a warning instead of raising an error.
+	    """
+	    import warnings
+	    count = len(obj)
+
+	    # Check for missing values
+	    if count == 0:
+	        msg = f"No {name} found for sub-{sub:02d}, ses-{ses:02d}, {extra_params}."
+	        if warning_only:
+	            warnings.warn(msg)
+	        else:
+	            raise ValueError(msg)
+		
+		# Check which files are found as a group if more than one file found   
+	    elif count > 1:
+	        msg = f"Found more than one {name}:\n{obj}.\nPlease verify your file-grabbing inputs."
+	        warnings.warn(msg)
+	
 	# Initialize paths
 	homePath = Path(homePath)
 	mriPath  = Path(mriPath)

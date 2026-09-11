@@ -402,40 +402,79 @@ def resample_img(target, reference, output, method, interpolation, transform="")
             print("Erreur: antsApplyTransforms n'est pas trouvé dans le PATH.")
             return False
 
-def add_nuisance(bunch, confounds_path, confounds_names):
+def add_nuisance(bunch_dict, confounds_list, confounds_names):
     '''
     Parameters:
-        bunch: a list with a Bunch object, created by parsing logfiles of the experimental task.
-        confounds_path: The path to filtered confounds (physiological regressors files - TAPAS/BIOPAC).
-        confounds_names: The column names of these confounds/regressors.
+        bunch_dict: a list with Bunch objects, created by parsing logfiles of the experimental task.
+        confounds_list: list of paths to filtered confounds (physiological regressors files).
+        confounds_names: column names of these confounds/regressors.
 
     Returns:
         Bunch: a list with a bunch object that includes the regressors.
     '''
+    import numpy as np
     import pandas as pd
+    from pathlib import Path
     from nipype.interfaces.base import Bunch
 
-    # Select the bunch object
-    design_bunch = bunch[0]
+    design_bunch_list = []
+    for bunch_log, conf_path in zip(bunch_dict, confounds_list):
 
-    # Read the confounds file
-    all_confounds = pd.read_csv(
-        confounds_path,
-        sep='\t',
-        header=None,
-        names=confounds_names,
-        index_col=False
-    )
+        # Verify that the selected bunch and confounds refer to the same
+        if not bunch_log.removesuffix("_events") == Path(conf_path).stem.removesuffix("_confounds"):
+            raise ValueError(
+                "The bunch object and confounds file do not correspond to the same sub/ses/acq:\n"
+                f"Bunch: {bunch_log.removesuffix('_events')}\n"
+                f"Confounds: {Path(conf_path).stem.removesuffix('_confounds')}"
+            )
 
-    # Remove the last row of the dataframe which correspnds to the noise scan volume
-    # This is not removed for physiological data ....
-    all_confounds = all_confounds.iloc[:-1]
+        # Read the confounds file
+        all_confounds = pd.read_csv(
+            conf_path,
+            sep='\t',
+            header=None,
+            names=confounds_names,
+            index_col=False
+        )
 
-    # Convert to the required format for SPM Bunch
-    regressors = [all_confounds[col].tolist() for col in all_confounds.columns]
+        # Remove the last row of the dataframe which correspnds to the noise scan volume
+        # This is not removed for physiological data!
+        all_confounds = all_confounds.iloc[:-1]
+
+        # Convert to the required format for SPM Bunch
+        regressors = [all_confounds[col].tolist() for col in all_confounds.columns]
+        
+        # Regressor validation
+        empty_or_nan_cols = []
+        for i, col in enumerate(all_confounds.columns):
+            series = all_confounds[col]
+            
+            # Check 1: Is the series empty?
+            if series.empty:
+                empty_or_nan_cols.append(col)
+                continue
+                
+            # Check 2: Is the series full of NaNs?
+            if series.isna().all():
+                empty_or_nan_cols.append(col)
+
+        if empty_or_nan_cols:
+            print(f"Warning: The following regressors are empty or contain only NaNs and will be skipped: {empty_or_nan_cols}")
+            
+            # Filter them out
+            valid_regressors = [r for i, r in enumerate(regressors) if all_confounds.columns[i] not in empty_or_nan_cols]
+        else:
+            print("All regressors contain valid data.")
+            valid_regressors = regressors
+        
+        # Select the correct bunch
+        design_bunch = bunch_dict[bunch_log]
+
+        # Add regressors
+        design_bunch.regressors = valid_regressors
+        design_bunch.regressor_names = confounds_names
+
+        # Append to list
+        design_bunch_list.append(design_bunch)
     
-    # Add regressors
-    design_bunch.regressors = regressors
-    design_bunch.regressor_names = confounds_names
-    
-    return [design_bunch]
+    return design_bunch_list
