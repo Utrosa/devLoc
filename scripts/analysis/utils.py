@@ -406,11 +406,11 @@ def add_nuisance(bunch_dict, confounds_list, confounds_names):
     '''
     Parameters:
         bunch_dict: a list with Bunch objects, created by parsing logfiles of the experimental task.
-        confounds_list: list of paths to filtered confounds (physiological regressors files).
+        confounds_list: list of paths to filtered confounds (physiological regressors files - TAPAS!).
         confounds_names: column names of these confounds/regressors.
 
     Returns:
-        Bunch: a list with a bunch object that includes the regressors.
+        List: a list of lists with bunch objects that include the regressors.
     '''
     import numpy as np
     import pandas as pd
@@ -420,12 +420,12 @@ def add_nuisance(bunch_dict, confounds_list, confounds_names):
     design_bunch_list = []
     for bunch_log, conf_path in zip(bunch_dict, confounds_list):
 
-        # Verify that the selected bunch and confounds refer to the same
-        if not bunch_log.removesuffix("_events") == Path(conf_path).stem.removesuffix("_confounds"):
+        # Verify that the selected bunch and regressors refer to the same
+        if not bunch_log.removesuffix("_events") == Path(conf_path).stem.removesuffix("_regressors"):
             raise ValueError(
-                "The bunch object and confounds file do not correspond to the same sub/ses/acq:\n"
+                "The bunch object and regressors file do not correspond to the same sub/ses/acq:\n"
                 f"Bunch: {bunch_log.removesuffix('_events')}\n"
-                f"Confounds: {Path(conf_path).stem.removesuffix('_confounds')}"
+                f"Regressors: {Path(conf_path).stem.removesuffix('_regressors')}"
             )
 
         # Read the confounds file
@@ -471,10 +471,14 @@ def add_nuisance(bunch_dict, confounds_list, confounds_names):
         design_bunch = bunch_dict[bunch_log]
 
         # Add regressors
-        design_bunch.regressors = valid_regressors
+        # https://nipype.readthedocs.io/en/1.11.0/api/generated/nipype.algorithms.modelgen.html
+        # CHECK: They say they want "regressors" for the Bunch but with concatenate=False, modeler fails with that name
+        # and it requires "regress"!
+        design_bunch.regress = valid_regressors
         design_bunch.regressor_names = confounds_names
 
         # Append to list
         design_bunch_list.append(design_bunch)
     
+
     return design_bunch_list

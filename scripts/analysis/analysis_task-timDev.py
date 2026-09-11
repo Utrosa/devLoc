@@ -94,7 +94,7 @@ infohandle = pe.Node(
             "T1w_to_MNI_path",
             "orig_to_boldref_paths",
             "boldref_to_T1w_paths", 
-            "TRs"
+            "TR"
         ],
         function = grab_objects),
 name = "infohandle"
@@ -109,16 +109,17 @@ infohandle.inputs.task     = c.task
 # 02. Additional preprocessing nodes: smoothing and outlier detection
 # -------------------------------------------------------------------------------------------------
 if c.smoothing:
-    smoother = pe.Node(interface=spm.Smooth(), name="smoother")
+    smoother = pe.MapNode(interface = spm.Smooth(), name = "smoother", iterfield = ["in_files"])
     smoother.inputs.fwhm = c.smoothing # TODO: Check whether this has to be a list?  
 
 if c.artDetect:
     # Using intensity and motion parameters to infer outliers from functional images
     # https://nipype.readthedocs.io/en/latest/api/generated/nipype.algorithms.rapidart.html
     # https://github.com/nipy/nipype/blob/master/nipype/algorithms/rapidart.py
-    art_detect = pe.Node(
+    art_detect = pe.MapNode(
         ArtifactDetect(),
-        name = "art_detect"
+        name = "art_detect",
+        iterfield = ["mask_file", "realignment_parameters", "realigned_files"]
     )
     art_detect.inputs.parameter_source = "FSL" # fMRIPrep uses FSL MCFLIRT to estimate confounds
     art_detect.inputs.mask_type = "file" # specifies a brain mask file
@@ -148,7 +149,7 @@ if c.artDetect:
 bunch_log = pe.Node(
     Function(
         input_names  = ["time_logs", "time_binary", "time_abs", "time_groups", "add_freqDev"],
-        output_names = ["timfreq_bunch_list"],
+        output_names = ["timfreq_bunch_dict"],
         function = timfreqDev
     ),
     name = "bunch_log"
@@ -161,8 +162,8 @@ bunch_log.inputs.add_freqDev = c.freqDev_jobName
 # Add regressors to Bunch
 bunch_reg = pe.Node(
     Function(
-        input_names = ["bunch", "confounds_path", "confounds_names"],
-        output_names = ["design_bunch"],
+        input_names = ["bunch_dict", "confounds_list", "confounds_names"],
+        output_names = ["design_bunch_list"],
         function = add_nuisance
     ),
     name = "bunch_reg"
@@ -228,11 +229,11 @@ timDev22.connect([(infosource, infohandle, [
 # Parse the logfiles into bunches
 timDev22.connect([
     (infohandle, bunch_log, [("log_paths", "time_logs")]),
-    (infohandle, bunch_reg, [("reg_paths", "confounds_path")]) # reg_path: only exists when including BIOPAC
+    (infohandle, bunch_reg, [("reg_paths", "confounds_list")]) # reg_path: only exists when including BIOPAC
 ])
 
 timDev22.connect([
-    (bunch_log, bunch_reg, [("timfreq_bunch_list", "bunch")])
+    (bunch_log, bunch_reg, [("timfreq_bunch_dict", "bunch_dict")])
 ])
 
 # Unzip bold files
@@ -268,14 +269,14 @@ else:
 
 # Connect to modeler
 timDev22.connect([
-    (infohandle, modeler, [("TRs", "time_repetition")]),
-    (bunch_reg, modeler, [("design_bunch", "subject_info")])
+    (infohandle, modeler, [("TR", "time_repetition")]), # TR has to be a float
+    (bunch_reg, modeler, [("design_bunch_list", "subject_info")])
 ])
 
 # Design the matrix
 timDev22.connect([
     (modeler, designer, [("session_info", "session_info")]),
-    (infohandle, designer, [("TRs", "interscan_interval")])])
+    (infohandle, designer, [("TR", "interscan_interval")])])
 
 # Estimate
 timDev22.connect([(designer, estimator, [("spm_mat_file", "spm_mat_file")])])

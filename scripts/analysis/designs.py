@@ -430,7 +430,7 @@ def timfreqDev(time_logs, time_binary, time_abs, time_groups, add_freqDev):
                      deviants groups they create (values). Default to False (no grouping).
         add_freqDev: If True (str), adding freqDev Bunch. If False, returning only timDev Bunch.
     Returns:
-        list: A Bunch object containing conditions, onsets, and durations.
+        list: a list of lists with Bunch objects containing conditions, onsets, and durations.
     """
     import csv, warnings
     from pathlib import Path

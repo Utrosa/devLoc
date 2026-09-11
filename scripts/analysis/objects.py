@@ -182,7 +182,11 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, task, 
 			boldref_to_T1w_paths.append(btto.path)
 			print(f"\nFor from-boldref_to-T1w selected: {Path(btto).name}")
 
-	# Extract repetition time with PyBIDS methods [sec]
+	# Extract repetition times with PyBIDS methods [sec]
 	TRs = [bo.get_metadata()['RepetitionTime'] for bo in bold_object]
-		
-	return log_paths, bold_paths, mask_paths, conf_paths, reg_paths, movpar_paths, out_paths, T1w_path, T1w_to_MNI_path, orig_to_boldref_paths, boldref_to_T1w_paths, TRs
+
+	# Select a TR
+	warnings.warn("Assuming all to-be-concatenated functional scans have the same TR.")
+	TR = TRs[0]
+
+	return log_paths, bold_paths, mask_paths, conf_paths, reg_paths, movpar_paths, out_paths, T1w_path, T1w_to_MNI_path, orig_to_boldref_paths, boldref_to_T1w_paths, TR
