@@ -9,6 +9,8 @@ results/
 templates/
 tests/
 performance_plots/
+__pycache__/
 
 # Untracked files
 *.png
+*.pklz
