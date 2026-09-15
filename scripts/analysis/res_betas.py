@@ -1,12 +1,13 @@
 #! /usr/bin/env python
-# Time-stamp: <04-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <15-09-2026 m.utrosa@bcbl.eu>
 """
 Extract ROI arrays from beta images and plot a single violin 
-plot per ROI, where each beta is an average from all runs for that
-subject (n = n_voxels) OR  across voxels per run (n = n_runs).
+plot per ROI, where each beta is:
+	a.) an average across runs for that subject (n = n_voxels), or
+	b.) an average across voxels per run (n = n_runs).
 
 Before running this script ensure that you have resampled the atlas
-correctly to the resolution of the functional images.
+and outputs from 1st level GLM analysis correctly to the desired space.
 """
 # Import python packages
 import pandas as pd
@@ -20,14 +21,14 @@ from scipy.stats import wilcoxon
 import config as c
 from config import plotConf, apply_figure_style
 from utils import extract_roi_array, plot_violins_average
+
+# Apply style for the figures
 apply_figure_style()
 
-# TODO: reduce the iterations => this code is slow because we're iterating
-# twice through all beta images in the same way to do different things; join
-# parts 02 and 01 ;)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 00. Check that inputs are defined correctly
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Averaging configuration
 if c.average_voxels and c.average_runs:
     raise ValueError(
         "Statistical tests cannot be performed when averaging across BOTH runs and voxels. "
@@ -37,81 +38,74 @@ if c.average_voxels and c.average_runs:
 if not c.average_voxels and not c.average_runs:
     raise ValueError(
         "To perform statistical tests we need one-dimensional arrays, "
-        "which means that the selected values per beta image "
+        "which means that the selected values (per beta image) "
         "have to be averaged EITHER across runs or voxels."
     )
+
+# ROI specification (names and order)
+roi_names = list(c.rois.keys())
+print(f"The configured ROIS are: {roi_names}.")
+
+# Selection of conditions: the order matters!
+conditions = c.timDevs
+print(f"\nThe selected {len(conditions)} conditions are:\n{conditions}."
+	"\nIMPORTANT: The above conditions must correspond to the order of regressors"
+	" in the SPM design. The order impacts which beta files are loaded.")
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 01. Extract beta values per voxel from each ROI.
-# ROI1: {C1: [[v1, v2, v3, ...],[[v1, v2, v3, ...]]], 
-#        C2: [[[v1, v2, v3, ...]],[[v1, v2, v3, ...]]]} 
+# {ROI1: {C1: [[v1, v2, v3, ...],[v1, v2, v3, ...]], 
+#         C2: [[v1, v2, v3, ...],[v1, v2, v3, ...]]} 
 # Each roi is a dictionary of length n_cond
 # Each cond is a list with n_run arrays
 # Each run array has n_voxel values
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Initialize a dictionary to save extracted values
-extracted_beta = {name: {c: [] for c in c.conditions }  for name in c.rois.keys()}
-roi_names = list(extracted_beta.keys())
+extracted_beta = {name: {c: [] for c in conditions} for name in roi_names}
 beta_affine = None
-for sesID in c.sesIDs:                
-	for acqID in c.acqIDs:
+for b in range(1, len(conditions) + 1):
 
-		# Construct the path
-		beta_fold = c.dataPath / f"sub-{c.subID:02d}" / f"ses-{sesID:02d}" / f"acq-{acqID}"
-		if not beta_fold.exists():
-			print(f"No acq-{acqID} subfolder found for sub-{c.subID:02d}, ses-{sesID:02d}. "
-				   "Assuming concatenation.")
-			acqID = None
-			beta_fold = c.dataPath / f"sub-{c.subID:02d}" / f"ses-{sesID:02d}"
-		
-		# Inspect the SPM.xX.name to see which beta images correspond to
-		# which conditions of the SPM design matrix.  Assuming numerical
-		# naming of beta images: beta_space-T1wFOV_0004.nii.
-		for b in range(1, len(c.conditions) + 1):
-			
-			# Current condition
-			cond = c.conditions[b - 1]
+    # Current condition
+    cond = conditions[b - 1]
 
-			# Construct the name
-			beta_name = f"beta_{c.resampled_stem}_{b:04d}.nii"
-			beta_path = beta_fold / beta_name
+    # Construct the name
+    beta_name = f"beta_{c.resampled_stem}_{b:04d}.nii"
 
-			# Extract the subcortical arrays		
-			mask_subcor, _, beta_subcor_affine = extract_roi_array(
-				c.subID,
-				sesID,
-				acqID, # only necessary for filenames
-				c.atlas_subcor_path,
-				c.space,
-				beta_path,
-				c.rois_subcortical,
-				c.out_1st,
-				verbose=False,
-				save=c.save_roi,
-				average_voxels=False # Keeping this false for consistency
-			)
-			
-			# Extract the cortical arrays
-			mask_cor, _, beta_cor_affine = extract_roi_array(
-				c.subID,
-				sesID,
-				acqID, # only necessary for filenames
-				c.atlas_cor_path,
-				c.space,
-				beta_path,
-				c.rois_cortical,
-				c.out_1st,
-				verbose=False,
-				save=c.save_roi,
-				average_voxels=False # Keeping this false for consistency
-			)
-		
-			# Accumulate subcortical arrays for summation
-			for name in c.rois_subcortical.keys():
-				extracted_beta[name][cond].append(mask_subcor[name])
+    # Define beta paths
+    beta_paths = list(c.dataPath.rglob(beta_name))
 
-			# Accumulate cortical arrays for summation
-			for name in c.rois_cortical.keys():
-				extracted_beta[name][cond].append(mask_cor[name])
+    for beta_path in beta_paths:
+
+        # Extract the subcortical arrays        
+        mask_subcor, _, beta_subcor_affine = extract_roi_array(
+            c.atlas_subcor_path,
+            c.space,
+            beta_path,
+            c.rois_subcortical,
+            c.out_1st,
+            verbose=c.verbose,
+            save=c.save_roi,
+            average_voxels=False # Keeping this false for consistency
+        )
+        
+        # Extract the cortical arrays
+        mask_cor, _, beta_cor_affine = extract_roi_array(
+            c.atlas_cor_path,
+            c.space,
+            beta_path,
+            c.rois_cortical,
+            c.out_1st,
+            verbose=c.verbose,
+            save=c.save_roi,
+            average_voxels=False # Keeping this false for consistency
+        )
+
+        # Accumulate subcortical arrays for summation
+        for name in c.rois_subcortical.keys():
+            extracted_beta[name][cond].append(mask_subcor[name])
+
+        # Accumulate cortical arrays for summation
+        for name in c.rois_cortical.keys():
+            extracted_beta[name][cond].append(mask_cor[name])
 
 # Assign beta affine
 if beta_cor_affine.all() == beta_subcor_affine.all():
@@ -121,36 +115,36 @@ if beta_cor_affine.all() == beta_subcor_affine.all():
 # Print shape of the raw extracted data
 print("\n--- RAW EXTRACTED DATA ---")
 for roi_name in roi_names:
-	for cond in c.conditions:
+	for cond in conditions:
 		print(f"{roi_name} - {cond}: {np.shape(extracted_beta[roi_name][cond])}")
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 02. Transform the extracted beta values.
-# Average across runs or voxels: (n_runs, n_voxels)
+# Average across runs or voxels. Original shape: (n_runs, n_voxels).
+# If we have a single dataset (one subject, one session) with concatenation per
+# block it will be (n_observations, n_voxels) per ROI.
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-selected_betas = {name: {c: [] for c in c.conditions }  for name in c.rois.keys()}
+selected_betas = {name: {c: [] for c in conditions } for name in roi_names}
 
 # Iterate through the ROIs
-for roi_name in c.rois.keys():
-
+for roi_name in roi_names:
 	roi_dict = extracted_beta[roi_name]
 
-	# Iterate through timing deviancy conditions	
-	for condition in c.conditions:
+	# Iterate through the conditions (the SPM regressors)
+	for condition in conditions:
 
-		# Get a list of arrays (n_runs length)	
-		array_list = roi_dict[condition]
-		
-		# Optionally, removing empty arrays	(zero values)
+		# Get a list of arrays (n_observations length)	
+		array_list = roi_dict[condition][0]
+
+		# Optionally, remove empty arrays (zero values)
 		if c.remove_empty:
-			valid_arrays = [arr for arr in array_list if arr.size > 0]
-			if len(valid_arrays) != len(array_list):
-				message = f"For ROI {roi_name}, removing {len(array_list) - len(valid_arrays)} empty array(s) before averaging."
+			valid_array = [arr for arr in array_list if arr.size > 0]
+			if len(valid_array) != len(array_list):
+				message = f"\nFor ROI {roi_name}, removing {len(array_list) - len(valid_array)} empty array(s) before averaging."
 				warnings.warn(message)
 		else:
-			valid_arrays = array_list
+			valid_array = array_list
 
-		if len(valid_arrays) > 0:
+		if len(valid_array) > 0:
 
 			# Collapse voxels: get a mean contrast value across voxels
 			if c.average_voxels:
@@ -163,7 +157,7 @@ for roi_name in c.rois.keys():
 				selected_betas[roi_name][condition].append(averaged_array)
 			
 			# Optionally save all averaged betas to disk
-			# Why here averaged and the contrasts summed?
+			# TODO: Why here averaged and the contrasts summed?
 			if c.save_averaged:
 				summed_filename = f"betas_roi-{roi_name}_sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_job-{c.jobName}_space-{c.resampled_stem}_cond-{condition}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}.nii.gz"
 				summed_path = c.out_1st / summed_filename
@@ -173,36 +167,34 @@ for roi_name in c.rois.keys():
 					nib.save(nib.Nifti1Image(averaged_array, beta_affine), summed_path)
 
 # Print update on the structure of array
-print(
-    "\n--- TRANSFORMED EXTRACTED DATA ---",
-    f"\nAveraged across runs: {c.average_runs}",
-    f"\nAveraged across voxels: {c.average_voxels}\n")
+print("\n--- TRANSFORMED EXTRACTED DATA ---",
+     f"\nAveraged across runs: {c.average_runs}",
+     f"\nAveraged across voxels: {c.average_voxels}\n")
 for roi_name in roi_names:
-	for cond in c.conditions:
+	for cond in conditions:
 	    if np.isscalar(selected_betas[roi_name]):
-	        print(f"{roi_name} - {cond}: {float(selected_betas[roi_name][cond]):.4f}")
+	        print(f"{roi_name}, {cond}: {float(selected_betas[roi_name][cond]):.4f}")
 	    else:
-	        print(f"{roi_name} - {cond}: {np.shape(np.array(selected_betas[roi_name][cond]))}")
+	        print(f"{roi_name}, {cond}: {np.shape(np.array(selected_betas[roi_name][cond]))}")
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03. Descriptive plotting
-# Plot beta values per ROI (subplot) and condition (x axis) 
+# Plot beta values per ROI (subplot) and condition (x axis)
+# AIM: visualize the range and shape of betas' distributions. 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 plot_violins_average(
-	selected_betas,
-	c.subID,
-	c.sessions,
-	c.blocks,
-	c.plot_rois,
-	plotConf["cols"],
-	c.out_1st,
-	c.space,
-	scale=False,
-	save=c.save_fig,
-	average_runs=c.average_runs,    # only for the filename
-	average_voxels=c.average_voxels # only for the filename
+		selected_betas,
+		c.subID,
+		c.plot_rois,
+		c.plotConf,
+		c.out_1st,
+		c.space,
+		scale=False,
+		save=c.save_fig,
+		show=c.show_fig,
+		average_runs=c.average_runs,    # only for the filename
+		average_voxels=c.average_voxels # only for the filename
 )
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 04. Statistics #TODO: CHECK CORRECTNESS -- smth IS wrong : Bonferroni?!
 # Compare conditions within an ROI (with averaged or not voxels).
@@ -216,25 +208,25 @@ if c.average_runs:
         
         # Get the number of runs (should be consistent across conditions)
         # Assuming cond_dict[cond] is a list of arrays (one array per run)
-        n_runs = len(cond_dict[c.conditions[0]])
+        n_runs = len(cond_dict[conditions[0]])
         
         # Get the number of voxels (assumed constant across runs)
         # Extract from the first run of the first condition
-        n_voxels = len(cond_dict[c.conditions[0]][0])
+        n_voxels = len(cond_dict[conditions[0]][0])
         
         for run_idx in range(n_runs):
             for voxel_idx in range(n_voxels):
                 # Extract value for Condition 1
-                val_cond1 = cond_dict[c.conditions[0]][run_idx][voxel_idx]
+                val_cond1 = cond_dict[conditions[0]][run_idx][voxel_idx]
                 
                 # Extract value for Condition 2
-                val_cond2 = cond_dict[c.conditions[1]][run_idx][voxel_idx]
+                val_cond2 = cond_dict[conditions[1]][run_idx][voxel_idx]
                 
                 data_rows.append({
                     'ROI':       roi_name,
                     'Voxel_ID':  voxel_idx,    # 0-indexed voxel ID
                     'Run_ID':    run_idx,      # 0-indexed run ID
-                    'Condition': c.conditions[0],
+                    'Condition': conditions[0],
                     'Value':     val_cond1
                 })
                 
@@ -242,7 +234,7 @@ if c.average_runs:
                     'ROI':       roi_name,
                     'Voxel_ID':  voxel_idx,
                     'Run_ID':    run_idx,
-                    'Condition': c.conditions[1],
+                    'Condition': conditions[1],
                     'Value':     val_cond2
                 })
 
@@ -265,9 +257,9 @@ if c.average_runs:
     for (roi, voxel_id), group in grouped:
 
         # Check if both conditions exist for this group
-        if c.conditions[0] in group.columns and c.conditions[1] in group.columns:
-            cond1_vals = group[c.conditions[0]].values
-            cond2_vals = group[c.conditions[1]].values
+        if conditions[0] in group.columns and conditions[1] in group.columns:
+            cond1_vals = group[conditions[0]].values
+            cond2_vals = group[conditions[1]].values
             
             try:
                 stat, p_val = wilcoxon(cond1_vals, cond2_vals)
@@ -309,7 +301,7 @@ elif c.average_voxels:
 	# Reshape the data for plotting	
 	data_rows = []
 	for roi_name, cond_dict in selected_betas.items():
-		for cond in c.conditions:
+		for cond in conditions:
 			values = cond_dict[cond][0]
 			
 			for idx, val in enumerate(values):
@@ -332,7 +324,7 @@ elif c.average_voxels:
 	rois = df['ROI'].unique()
 	for roi in rois:
 		roi_data = pivot_df.loc[roi]
-		stat, p_val = wilcoxon(roi_data[c.conditions[0]], roi_data[c.conditions[1]])
+		stat, p_val = wilcoxon(roi_data[conditions[0]], roi_data[conditions[1]])
 		results_table.append({
 			'ROI': roi,
 			'Statistic': stat,
@@ -354,14 +346,13 @@ elif c.average_voxels:
 
 # Colors
 colors = ['#EEDF5A', '#A8C6FF']
-hue_order = c.conditions
+hue_order = conditions
 
 # Figure layout
-n_cols = plotConf["cols"]
-n_rows = int(len(c.rois) / n_cols)
+n_rows = int(len(c.rois) / plotConf["cols"])
 fig, axes = plt.subplots(
 	n_rows,
-	n_cols,
+	plotConf["cols"],
 	figsize=plotConf["figsize"],
 	sharey=True
 )
@@ -403,8 +394,8 @@ for i, roi in enumerate(c.rois):
 
 	for run in roi_pivot.index:
 
-		val1 = roi_pivot.loc[run, c.conditions[0]]
-		val2 = roi_pivot.loc[run, c.conditions[1]]
+		val1 = roi_pivot.loc[run, conditions[0]]
+		val2 = roi_pivot.loc[run, conditions[1]]
 
 		j = jitters[run]
 
@@ -468,7 +459,8 @@ if c.save_fig:
 	fig_name = f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_job-{c.jobName}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}-one_sample.png"
 	fig_path = c.out_2nd / fig_name
 	plt.savefig(fig_path, dpi=plotConf["dpi"], bbox_inches="tight")
-	plt.close(fig)
 
 if c.show_fig:
 	plt.show()
+else:
+	plt.close(fig)

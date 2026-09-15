@@ -36,10 +36,12 @@ else:
 # Conditions determine the beta order. Check consistency with SPM design matrix.
 with open("deviants.yaml", "r") as f:
     devs = yaml.safe_load(f)
-timDev   = devs["timDev"][timDev_jobName]
+timDev  = devs["timDev"][timDev_jobName]
+timDevs = timDev["conditions"]
 if freqDev_jobName:
     freqDev  = devs["freqDev"][freqDev_jobName]
     conditions = timDev["conditions"] + freqDev["conditions"]
+
     contrast_weights = timDev["weights"] + freqDev["weights"]
 else:
     conditions = timDev["conditions"]
@@ -137,7 +139,6 @@ blocks = "1234" # appears in the filenames 1234
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 05. Specify project directories
-# Core paths
 # homePath  = Path("/home/mutrosa/mutrosa/Documents/projects/devLoc") # Citrix
 homePath  = Path("/home/mutrosa/Documents/projects/devLoc")           # Local
 baseDir, workDir, outDir = get_base_dirs(homePath, develop_mode, jobName, denoising)
@@ -196,7 +197,7 @@ plotConf = {
     "figsize"          : (12, 15),
     "dpi"              : 300,
     "fig_fontsize"     : 14,
-    "subplot_fontsize" : 12
+    "subplot_fontsize" : 11
 }
 plot_rois = ["A1-L", "A1-R", "MGB-L", "MGB-R", "IC-L", "IC-R"] # hierarchical order!
 

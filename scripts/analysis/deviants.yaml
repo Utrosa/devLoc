@@ -8,7 +8,7 @@ timDev:
   }
   when22 : {
     "conditions" : [
-      "-4", "-8", "-13", "-19", "-27", "-36", "-48", "-63", "-80", "-100", "-125",
+      "-125", "-100", "-80", "-63", "-48", "-36", "-27", "-19", "-13", "-8", "-4",
       "4", "8", "13", "19", "27", "36", "48", "63", "80", "100", "125"],
     "weights" : [
       0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455, 0.0455,
@@ -26,13 +26,13 @@ timDev:
       "groups"   : False  # no assumption about groups (taking values from exp. design)
   }
   "whenPosNeg" : {
-    "conditions" : ["positive", "negative"],
+    "conditions" : ["negative", "positive"],
     "weights" : [0.5, 0.5], # 1/2
     "binary"   : False,  # devs are treated differently
     "absolute" : False,  # direction matters (early is assumed different from late)
     "groups"   : {
-      "positive" : [-4, -8, -13, -19, -27, -36, -48, -63, -80, -100, -125], # must be integers !
-      "negative" : [4, 8, 13, 19, 27, 36, 48, 63, 80, 100, 125]             # must be integers !
+      "negative" : [-125, -100, -80, -63, -48, -36, -27, -19, -13, -8, -4], # must be integers !
+      "positive" : [4, 8, 13, 19, 27, 36, 48, 63, 80, 100, 125]             # must be integers !
       }
     }
 

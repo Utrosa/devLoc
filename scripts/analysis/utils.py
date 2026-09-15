@@ -111,15 +111,12 @@ def compare_img(original_img_path, template_img_path, resampled_img_path, verbos
         """
         )
 
-def extract_roi_array(subID, sesID, acqID, atlas, space, res_path, rois, out_dir, verbose, save, average_voxels):
+def extract_roi_array(atlas, space, res_path, rois, out_dir, verbose, save, average_voxels):
     '''
     Extracts values from the specified regions of interest (ROIs).
     It's either one value per each voxel of the ROI or one value for the entire ROI.
 
     Parameters:
-    - subID: integer number, identifying the participant. Only needded for the filename of files saved to disk.
-    - sesID: integer number, identifying the session info. Only needded for the filename of files saved to disk.
-    - acqID: string, identifying the functional MRI sequence. Only needded for the filename of files saved to disk.
     - atlas: string, path to an established atlas for auditory areas.
     - space: string, coordinate space of the input and output data (native T1w or MNI).
     - res_path: string, path to outputs of 1st Level Analysis.
@@ -185,11 +182,7 @@ def extract_roi_array(subID, sesID, acqID, atlas, space, res_path, rois, out_dir
 
         # Optionally save result as a zipped nifti file
         res_masked = mask_data * res_data
-        if acqID:
-            result_filename = f"sub-{subID:02d}_ses-{sesID:02d}_acq-{acqID}_roi-{name}_space-{space}.nii.gz"
-        else:
-            result_filename = f"sub-{subID:02d}_ses-{sesID:02d}_roi-{name}_space-{space}.nii.gz"
-        result_path = out_dir / result_filename
+        result_path = res_path.parent / f"roi-{name}_{res_path.stem}.nii.gz"
         res_roi_paths[name] = result_path
         if save:
             nib.save(nib.Nifti1Image(res_masked, res_affine), result_path)
@@ -254,7 +247,7 @@ def plot_violins(mask_paths, subID, sesID, acqIDs, out_dir, space, scale):
         plt.savefig(fig_path, dpi = 200, bbox_inches = "tight")
         plt.close(fig)
 
-def plot_violins_average(betas, subID, sessions, blocks, plot_rois, n_cols, out_dir, space, scale, save, average_runs, average_voxels):
+def plot_violins_average(betas, subID, plot_rois, plot_conf, out_dir, space, scale, save, show, average_runs, average_voxels):
     """
     Plots the input data per ROI (subplots) and per condition (x axis categories).
     Depending on betas' structure, individual values in violin plots can be per run or per voxel.
@@ -262,14 +255,13 @@ def plot_violins_average(betas, subID, sessions, blocks, plot_rois, n_cols, out_
     Parameters:
     - betas: nested dict with a list of beta arrays (single or multiple values) per ROI and condition.
     - subID: integer number, identifying the participant.
-    - sessions: string of session numbers over which we are averaging.
-    - blocks: string with blocks numbers over which we are averaging.
     - plot_rois: list of ROI labels. These will be the subplots of the figure.
-    - n_cols: integer number subplots per column of the figure.
+    - plot_conf: dictionary with plot configuration (the number of columns, ...).
     - out_dir: string, specifying the folder name for saving the results as .nii.gz.
     - space: string, coordinate space of the input and output data (native T1w or MNI).
     - scale: If True, all subplots share the same y axis (scaled).
     - save: If True, saves the figure to disk.
+    - show: If True, shows the figure from terminal.
     - average_runs: If True, "beta_array" is list with a single array of n_voxel values.
     - average_voxels: If True, "beta_array" is a list of n_runs integers.
 
@@ -288,7 +280,12 @@ def plot_violins_average(betas, subID, sessions, blocks, plot_rois, n_cols, out_
 
             # Iterate through each condition
             for cond in betas[roi]:
-                rows.extend([{"ROI": roi, "cond": cond, "values": v} for v in betas[roi][cond][0]])
+                data = betas[roi][cond][0]
+                if np.ndim(data) == 0:
+                    values_to_iterate = [data]
+                else:
+                    values_to_iterate = data
+                rows.extend([{"ROI": roi, "cond": cond, "values": v} for v in values_to_iterate])
         
         # Create a dataframe suitable for plotting      
         df = pd.DataFrame(rows)
@@ -298,8 +295,8 @@ def plot_violins_average(betas, subID, sessions, blocks, plot_rois, n_cols, out_
     violins = sns.color_palette("Set2", n_colors=len(conds))
 
     # Create a grid of subplots
-    n_rows = int(np.ceil(len(plot_rois) / n_cols))
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, 10), sharey=True)
+    n_rows = int(np.ceil(len(plot_rois) / plot_conf["cols"]))
+    fig, axes = plt.subplots(n_rows, plot_conf["cols"], figsize=plot_conf["figsize"], sharey=True)
     axes = axes.flatten()
 
     # Plotting
@@ -309,40 +306,56 @@ def plot_violins_average(betas, subID, sessions, blocks, plot_rois, n_cols, out_
         # Filter data for the current ROI
         roi_data = df[df["ROI"] == roi]
 
+        # Create violin shape
         sns.violinplot(
-            x = "cond",
-            y = "values", 
-            data = roi_data,
-            ax = ax,
-            hue = "cond",
-            legend = False,
-            inner = "point", # Show individual observations
-            palette = violins,
-            bw_adjust = 0.8,
-            cut=0 # Limit the violin within the data range!
+            data=roi_data,
+            x="cond",
+            y="values",
+            hue="cond",
+            palette=violins,
+            inner="point", # show individual observations
+            legend=False,
+            cut=0, # limit the violin within the data range
+            ax=ax
         )
 
-        ax.set_title(f"{roi}", fontsize = 12)
-        ax.set_xlabel("", fontsize = 12)
-        ax.set_ylabel("", fontsize = 12)
+        ax.set_title(f"{roi}", fontsize=plot_conf["subplot_fontsize"])
+        ax.set_xlabel("", fontsize=plot_conf["subplot_fontsize"])
+        ax.set_ylabel("", fontsize=plot_conf["subplot_fontsize"])
 
+        # Add reference line at y=0
+        ax.axhline(0, color='black', linestyle='--', linewidth=1.5, alpha=0.8, zorder=1)
+
+        # Optionally, limit the y axis
         if scale == True:
             ax.set_ylim(-10, 10)
 
-        fig.suptitle(f"sub-{subID:02d}", fontsize = 16, fontweight = "bold")
-        fig.supxlabel("Timing Deviation [msec]", fontsize = 12)
-        fig.supylabel("Beta Estimate [β]", fontsize = 12)
+        # Set figure title and shared axis labels
+        fig.suptitle(
+            f"sub-{subID:02d}, avgVox: {average_voxels}, avgRun: {average_runs}",
+            fontsize=plot_conf["fig_fontsize"],
+            fontweight="bold")
+        fig.supxlabel(
+            "Timing Deviation [msec]",
+            fontsize=plot_conf["fig_fontsize"],
+            fontweight="bold")
+        fig.supylabel(
+            "Beta Estimate [β]",
+            fontsize=plot_conf["fig_fontsize"],
+            fontweight="bold")
         fig.tight_layout()
 
     # Optionally save
     if save:
-        fig_name = f"sub-{subID:02d}_ses-{sessions}_block-{blocks}_space-{space}_avgVox-{average_voxels}_avgRun-{average_runs}.png"
+        fig_name = f"sub-{subID:02d}_space-{space}_avgVox-{average_voxels}_avgRun-{average_runs}.png"
         fig_path = out_dir / fig_name
-        plt.savefig(fig_path, dpi=300, bbox_inches="tight")
-        plt.close(fig)
+        plt.savefig(fig_path, dpi=plot_conf["dpi"], bbox_inches="tight")
 
     # Show the plot
-    plt.show()
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
 
 def resample_img(target, reference, output, method, interpolation, transform=""):
     """
