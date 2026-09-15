@@ -38,7 +38,7 @@ def find_dev_group(delta_str, groups):
 
 def get_base_dirs(homePath, develop_mode, jobName, denoising):
     """Returns the core result directories based on mode."""
-    base = homePath / ("results" if develop_mode else "tests")
+    base = homePath / ("results" if not develop_mode else "tests")
     work = base / f"work-{jobName}" / f"NORDIC-{denoising}"
     out  = base / jobName / f"NORDIC-{denoising}"
     return base, work, out

@@ -117,9 +117,9 @@ show_fig       = True   # applies to figures with statistical results
 save_fig       = True   # applies to figures with statistical results
 save_summed    = False  # applies to the contrasts images
 save_averaged  = False  # averaged beta arrays
-average_voxels = True   # CONTRASTS: If True, one value (array) across VOXELS.
+average_voxels = False   # CONTRASTS: If True, one value (array) across VOXELS.
                         # If both are False, the extracted roi array has shape (n_runs, n_voxels)
-average_runs   = False   # If True, collapse runs and return a mean across runs.                  
+average_runs   = True   # If True, collapse runs and return a mean across runs.                  
 remove_empty   = False  # Remove or not empty arrays (e.g.: If we do not average across voxels, 
 					    # do we, when averaging across runs, include voxels that have zero 
 					    # beta values or not?)
@@ -162,7 +162,7 @@ for p in [outDir, out_2nd, out_1st, workDir]:
 
 # Filenames and folders of the 1st level analysis output
 # The 1st level results have to be resampled prior to visualization
-con_name = "timDev-freqDev"            # contrast label
+con_name = "timDev-freqDev" # contrast label
 
 # The stemp of the resampled output images
 resampled_stem = f"space-{space}FOV"
@@ -198,7 +198,7 @@ plotConf = {
     "fig_fontsize"     : 14,
     "subplot_fontsize" : 12
 }
-plot_rois   = ["IC-L", "IC-R", "MGB-L", "MGB-R", "A1-L", "A1-R"]
+plot_rois = ["A1-L", "A1-R", "MGB-L", "MGB-R", "IC-L", "IC-R"] # hierarchical order!
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 08. Specify statistical tests

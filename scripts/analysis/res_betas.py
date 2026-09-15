@@ -72,7 +72,7 @@ for sesID in c.sesIDs:
 			cond = c.conditions[b - 1]
 
 			# Construct the name
-			beta_name = f"{c.beta_filename}{b:04d}.nii"
+			beta_name = f"beta_{c.resampled_stem}_{b:04d}.nii"
 			beta_path = beta_fold / beta_name
 
 			# Extract the subcortical arrays		
@@ -165,7 +165,7 @@ for roi_name in c.rois.keys():
 			# Optionally save all averaged betas to disk
 			# Why here averaged and the contrasts summed?
 			if c.save_averaged:
-				summed_filename = f"roi-{roi_name}_sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_job-{c.jobName}_cond-{condition}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}_{c.beta_filename}.nii.gz"
+				summed_filename = f"betas_roi-{roi_name}_sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_job-{c.jobName}_space-{c.resampled_stem}_cond-{condition}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}.nii.gz"
 				summed_path = c.out_1st / summed_filename
 				
 				# Save the summed array
@@ -351,127 +351,124 @@ elif c.average_voxels:
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 05a. Statistics Plot per RUN: what am I comparing here? against zero? paired?
 # TODO: Statistics Plot per VOXEL matrix
-if c.average_voxels:
-	sns.set_context("paper", font_scale=1.3)
-	sns.set_style("white")
-	plt.rcParams['font.family'] = 'sans-serif'
-	plt.rcParams['font.sans-serif'] = ['Helvetica', 'Arial', 'DejaVu Sans']
-	plt.rcParams['axes.linewidth'] = 1.2
 
-	colors = ['#EEDF5A', '#A8C6FF']
-	hue_order = c.conditions
+# Colors
+colors = ['#EEDF5A', '#A8C6FF']
+hue_order = c.conditions
 
-	n_cols = plotConf["cols"]
-	n_rows = int(len(rois) / n_cols)
-	fig, axes = plt.subplots(
-		n_cols,
-		n_rows,
-		figsize=plotConf["figsize"],
-		sharey=True
-	)
-	axes = axes.flatten()
+# Figure layout
+n_cols = plotConf["cols"]
+n_rows = int(len(c.rois) / n_cols)
+fig, axes = plt.subplots(
+	n_rows,
+	n_cols,
+	figsize=plotConf["figsize"],
+	sharey=True
+)
+axes = axes.flatten()
 
-	for i, roi in enumerate(rois):
-		ax = axes[i]
-		
-		# Filter data for current ROI
-		roi_df = df[df['ROI'] == roi]
-		
-		# Create violin shape
-		sns.violinplot(
-			data=roi_df, 
-			x='Condition', 
-			y='Value',
-			hue="Condition",
-			palette=colors, 
-			order=hue_order,
-			ax=ax,
-			inner=None,
-			linewidth=1.5,
-			cut=0
-		)
-		
-		# Plot individual points and lines between them
-		roi_pivot = roi_df.pivot(
-			index='Run',
-			columns='Condition',
-			values='Value'
-		)
-		rng = np.random.default_rng(42)
-
-		jitters = {
-			run: rng.uniform(-0.08, 0.08)
-			for run in roi_pivot.index
-		}
-
-		for run in roi_pivot.index:
-
-			val1 = roi_pivot.loc[run, c.conditions[0]]
-			val2 = roi_pivot.loc[run, c.conditions[1]]
-
-			j = jitters[run]
-
-			x1 = 0 + j
-			x2 = 1 + j
-
-			ax.plot(
-				[x1, x2],
-				[val1, val2],
-				color='gray',
-				alpha=0.3,
-				lw=0.8,
-				zorder=1
-			)
-
-			ax.scatter(
-				[x1, x2],
-				[val1, val2],
-				color='black',
-				s=30,
-				alpha=0.7,
-				zorder=10
-			)
-		
-		# Set labels and title
-		ax.set_title(
-			f'{roi}',
-			fontsize=plotConf["subplot_fontsize"],
-			fontweight='bold'
-		)
-		ax.set_xlabel("")
-		ax.set_ylabel("")
-
-		# Add p-value text
-		p_val = results_df[results_df['ROI'] == roi]['P-Value'].values[0]
-		sig_marker = ""
-		if not np.isnan(p_val):
-				if p_val < 0.001:
-					sig_marker = "**"
-				elif p_val < 0.05:
-					sig_marker = "*"
-				else:
-					sig_marker = "ns"
-				
-				ax.text(0.5, 0.95, f'p = {p_val:.3f}\n{sig_marker}', 
-						transform=ax.transAxes, 
-						ha='center', va='top', 
-						fontsize=plotConf["subplot_fontsize"]
-						)
-		
-	fig.suptitle(
-		f"Averaged across voxels: {c.average_voxels}",
-		fontsize=plotConf["fig_fontsize"],
-		fontweight="bold"
-	)
-	fig.supxlabel('Condition', fontsize=plotConf["fig_fontsize"])
-	fig.supylabel('Beta Estimate', fontsize=plotConf["fig_fontsize"])
-	plt.tight_layout()
-
-	if c.save_fig:
-		fig_name = f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_job-{c.jobName}_averageVox-{c.average_voxels}-one_sample.png"
-		fig_path = c.out_2nd / fig_name
-		plt.savefig(fig_path, dpi=plotConf["dpi"], bbox_inches="tight")
-		plt.close(fig)
+# Iterate through the rois
+for i, roi in enumerate(c.rois):
+	ax = axes[i]
 	
-	if c.show_fig:
-		plt.show()
+	# Filter data for current ROI
+	roi_df = df[df['ROI'] == roi]
+	
+	# Create violin shape
+	sns.violinplot(
+		data=roi_df, 
+		x='Condition', 
+		y='Value',
+		hue="Condition",
+		palette=colors, 
+		order=hue_order,
+		ax=ax,
+		inner=None,
+		linewidth=1.5,
+		cut=0
+	)
+	
+	# Plot individual points and lines between them
+	roi_pivot = roi_df.pivot(
+		index='Run',
+		columns='Condition',
+		values='Value'
+	)
+	rng = np.random.default_rng(42)
+
+	jitters = {
+		run: rng.uniform(-0.08, 0.08)
+		for run in roi_pivot.index
+	}
+
+	for run in roi_pivot.index:
+
+		val1 = roi_pivot.loc[run, c.conditions[0]]
+		val2 = roi_pivot.loc[run, c.conditions[1]]
+
+		j = jitters[run]
+
+		x1 = 0 + j
+		x2 = 1 + j
+
+		ax.plot(
+			[x1, x2],
+			[val1, val2],
+			color='gray',
+			alpha=0.3,
+			lw=0.8,
+			zorder=1
+		)
+
+		ax.scatter(
+			[x1, x2],
+			[val1, val2],
+			color='black',
+			s=30,
+			alpha=0.7,
+			zorder=10
+		)
+	
+	# Set labels and title
+	ax.set_title(
+		f'{roi}',
+		fontsize=plotConf["subplot_fontsize"],
+		fontweight='bold'
+	)
+	ax.set_xlabel("")
+	ax.set_ylabel("")
+
+	# Add p-value text
+	p_val = results_df[results_df['ROI'] == roi]['P-Value'].values[0]
+	sig_marker = ""
+	if not np.isnan(p_val):
+			if p_val < 0.001:
+				sig_marker = "**"
+			elif p_val < 0.05:
+				sig_marker = "*"
+			else:
+				sig_marker = "ns"
+			
+			ax.text(0.5, 0.95, f'p = {p_val:.3f}\n{sig_marker}', 
+					transform=ax.transAxes, 
+					ha='center', va='top', 
+					fontsize=plotConf["subplot_fontsize"]
+					)
+	
+fig.suptitle(
+	f"Averaged across voxels: {c.average_voxels}",
+	fontsize=plotConf["fig_fontsize"],
+	fontweight="bold"
+)
+fig.supxlabel('Condition', fontsize=plotConf["fig_fontsize"])
+fig.supylabel('Beta Estimate', fontsize=plotConf["fig_fontsize"])
+plt.tight_layout()
+
+if c.save_fig:
+	fig_name = f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_job-{c.jobName}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}-one_sample.png"
+	fig_path = c.out_2nd / fig_name
+	plt.savefig(fig_path, dpi=plotConf["dpi"], bbox_inches="tight")
+	plt.close(fig)
+
+if c.show_fig:
+	plt.show()
