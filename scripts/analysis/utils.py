@@ -43,7 +43,7 @@ def get_base_dirs(homePath, develop_mode, jobName, denoising):
     out  = base / jobName / f"NORDIC-{denoising}"
     return base, work, out
 
-def compare_img(original_img_path, template_img_path, resampled_img_path):
+def compare_img(original_img_path, template_img_path, resampled_img_path, verbose=False):
     """
     Compares three nifti images in shape, affines, and form.
     Useful for checking that resamping has been correctly executed
@@ -62,53 +62,54 @@ def compare_img(original_img_path, template_img_path, resampled_img_path):
     template_shape  = template_img.shape
     template_affine = template_img.affine
 
-    print(
-        f"""Shape comparison:
-    - Original image shape   : {original_shape}
-    - Resampled image shape  : {resampled_shape}
-    - Template image shape   : {template_shape}
-    """
-    )
+    if verbose:
+        print(
+            f"""Shape comparison:
+        - Original image shape   : {original_shape}
+        - Resampled image shape  : {resampled_shape}
+        - Template image shape   : {template_shape}
+        """
+        )
 
-    print(
-        f"""Affine comparison:
-    - Original image affine  : \n{original_affine}\n
-    - Resampled image affine : \n{resampled_affine}\n
-    - Template image affine  : \n{template_affine}\n
-    """
-    )
+        print(
+            f"""Affine comparison:
+        - Original image affine  : \n{original_affine}\n
+        - Resampled image affine : \n{resampled_affine}\n
+        - Template image affine  : \n{template_affine}\n
+        """
+        )
 
-    print(
-        f"""Axis direction codes comparison:
-    - Original image axcodes   : {aff2axcodes(original_affine)}
-    - Resampled image axcodes  : {aff2axcodes(resampled_affine)}
-    - Template image axcodes   : {aff2axcodes(template_affine)}
-    """
-    )
+        print(
+            f"""Axis direction codes comparison:
+        - Original image axcodes   : {aff2axcodes(original_affine)}
+        - Resampled image axcodes  : {aff2axcodes(resampled_affine)}
+        - Template image axcodes   : {aff2axcodes(template_affine)}
+        """
+        )
 
-    print(
-        f"""Input orientation comparison:
-    - Original image orientation  : \n{io_orientation(original_affine)}
-    - Resampled image orientation : \n{io_orientation(resampled_affine)}
-    - Template image orientation  : \n{io_orientation(template_affine)}
-    """
-    )
+        print(
+            f"""Input orientation comparison:
+        - Original image orientation  : \n{io_orientation(original_affine)}
+        - Resampled image orientation : \n{io_orientation(resampled_affine)}
+        - Template image orientation  : \n{io_orientation(template_affine)}
+        """
+        )
 
-    print(
-        f"""qform comparison:
-    - Original image qform        : {original_img.header.get_qform()[0]}
-    - Resampled image qform       : {resampled_img.header.get_qform()[0]}
-    - Template image qform        : {template_img.header.get_qform()[0]}
-    """
-    )
+        print(
+            f"""qform comparison:
+        - Original image qform        : {original_img.header.get_qform()[0]}
+        - Resampled image qform       : {resampled_img.header.get_qform()[0]}
+        - Template image qform        : {template_img.header.get_qform()[0]}
+        """
+        )
 
-    print(
-        f"""sform comparison:
-    - Original image sform        : {original_img.header.get_sform()[0]}
-    - Resampled image sform       : {resampled_img.header.get_sform()[0]}
-    - Template image sform        : {template_img.header.get_sform()[0]}
-    """
-    )
+        print(
+            f"""sform comparison:
+        - Original image sform        : {original_img.header.get_sform()[0]}
+        - Resampled image sform       : {resampled_img.header.get_sform()[0]}
+        - Template image sform        : {template_img.header.get_sform()[0]}
+        """
+        )
 
 def extract_roi_array(subID, sesID, acqID, atlas, space, res_path, rois, out_dir, verbose, save, average_voxels):
     '''
@@ -184,7 +185,10 @@ def extract_roi_array(subID, sesID, acqID, atlas, space, res_path, rois, out_dir
 
         # Optionally save result as a zipped nifti file
         res_masked = mask_data * res_data
-        result_filename = f"sub-{subID:02d}_ses-{sesID:02d}_acq-{acqID}_roi-{name}_space-{space}.nii.gz"
+        if acqID:
+            result_filename = f"sub-{subID:02d}_ses-{sesID:02d}_acq-{acqID}_roi-{name}_space-{space}.nii.gz"
+        else:
+            result_filename = f"sub-{subID:02d}_ses-{sesID:02d}_roi-{name}_space-{space}.nii.gz"
         result_path = out_dir / result_filename
         res_roi_paths[name] = result_path
         if save:

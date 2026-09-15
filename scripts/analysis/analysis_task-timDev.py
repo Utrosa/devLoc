@@ -51,7 +51,7 @@ datasink_T1w = pe.Node(
 
 # Output substitutions: correct all Datasink output folder structures
 substitutions = []
-subjFolders = [('sesID_%s_subID_%s' % (ses, sub),
+subjFolders = [('_sesID_%s_subID_%s' % (ses, sub),
 				'sub-0%s/ses-0%s' % (sub, ses))
                for ses in c.sesIDs
                for sub in c.subIDs]

@@ -21,6 +21,7 @@ import config as c
 from config import plotConf, apply_figure_style
 from utils import extract_roi_array, plot_violins_average
 apply_figure_style()
+
 # TODO: reduce the iterations => this code is slow because we're iterating
 # twice through all beta images in the same way to do different things; join
 # parts 02 and 01 ;)
@@ -54,6 +55,14 @@ beta_affine = None
 for sesID in c.sesIDs:                
 	for acqID in c.acqIDs:
 
+		# Construct the path
+		beta_fold = c.dataPath / f"sub-{c.subID:02d}" / f"ses-{sesID:02d}" / f"acq-{acqID}"
+		if not beta_fold.exists():
+			print(f"No acq-{acqID} subfolder found for sub-{c.subID:02d}, ses-{sesID:02d}. "
+				   "Assuming concatenation.")
+			acqID = None
+			beta_fold = c.dataPath / f"sub-{c.subID:02d}" / f"ses-{sesID:02d}"
+		
 		# Inspect the SPM.xX.name to see which beta images correspond to
 		# which conditions of the SPM design matrix.  Assuming numerical
 		# naming of beta images: beta_space-T1wFOV_0004.nii.
@@ -62,16 +71,15 @@ for sesID in c.sesIDs:
 			# Current condition
 			cond = c.conditions[b - 1]
 
-			# Construct the path
+			# Construct the name
 			beta_name = f"{c.beta_filename}{b:04d}.nii"
-			beta_fold = c.dataPath / f"sub-{c.subID:02d}" / f"ses-{sesID:02d}" / f"acq-{acqID}"
 			beta_path = beta_fold / beta_name
 
 			# Extract the subcortical arrays		
 			mask_subcor, _, beta_subcor_affine = extract_roi_array(
 				c.subID,
 				sesID,
-				acqID,
+				acqID, # only necessary for filenames
 				c.atlas_subcor_path,
 				c.space,
 				beta_path,
@@ -86,7 +94,7 @@ for sesID in c.sesIDs:
 			mask_cor, _, beta_cor_affine = extract_roi_array(
 				c.subID,
 				sesID,
-				acqID,
+				acqID, # only necessary for filenames
 				c.atlas_cor_path,
 				c.space,
 				beta_path,

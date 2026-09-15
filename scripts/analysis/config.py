@@ -117,9 +117,9 @@ show_fig       = True   # applies to figures with statistical results
 save_fig       = True   # applies to figures with statistical results
 save_summed    = False  # applies to the contrasts images
 save_averaged  = False  # averaged beta arrays
-average_voxels = False  # CONTRASTS: If True, one value (array) across VOXELS.
+average_voxels = True   # CONTRASTS: If True, one value (array) across VOXELS.
                         # If both are False, the extracted roi array has shape (n_runs, n_voxels)
-average_runs   = True   # If True, collapse runs and return a mean across runs.                  
+average_runs   = False   # If True, collapse runs and return a mean across runs.                  
 remove_empty   = False  # Remove or not empty arrays (e.g.: If we do not average across voxels, 
 					    # do we, when averaging across runs, include voxels that have zero 
 					    # beta values or not?)
@@ -146,7 +146,6 @@ baseDir, workDir, outDir = get_base_dirs(homePath, develop_mode, jobName, denois
 dataPath   = outDir / "1stLevel"
 out_2nd    = outDir / "2ndLevel"
 out_1st    = dataPath / "visualization"
-spmt_out   = baseDir / "visualization"
 atlasPath  = homePath / "templates" / "resampled"
 physioPath = homePath / "data_physio" / "raw"
 
@@ -158,16 +157,15 @@ artPath  = homePath / "data_physio" / "artifacts" / f"NORDIC-{denoising}"
 freesurfer_dir = mriPath / "sourcedata" / "freesurfer" / f"sub-{subID:02d}_ses-{anatID:02d}" / "mri"
 
 # Create missing directories
-for p in [outDir, out_2nd, out_1st, spmt_out, workDir]:
+for p in [outDir, out_2nd, out_1st, workDir]:
     p.mkdir(parents=True, exist_ok=True)
 
 # Filenames and folders of the 1st level analysis output
 # The 1st level results have to be resampled prior to visualization
 con_name = "timDev-freqDev"            # contrast label
-# TODO: boldref or T1w or T1wFOV (impacts resampling before visualization!) :below:
-con_filename   = f"con_space-{space}_"   # image
-beta_filename  = f"beta_space-{space}_"  # image
-spmT_filename  = f"spmT_space-{space}_"  # image
+
+# The stemp of the resampled output images
+resampled_stem = f"space-{space}FOV"
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 06. Specify atlas and roi info
