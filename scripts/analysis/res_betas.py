@@ -16,6 +16,7 @@ import nibabel as nib
 import seaborn as sns
 import matplotlib.pyplot as plt
 from scipy.stats import wilcoxon
+from itertools import combinations
 
 # Import custom-made functions
 import config as c
@@ -148,13 +149,20 @@ for roi_name in roi_names:
 
 			# Collapse voxels: get a mean contrast value across voxels
 			if c.average_voxels:
-				averaged_array = np.mean(array_list, axis=1)
+				averaged_array = np.mean(valid_array, axis=0)
 				selected_betas[roi_name][condition].append(averaged_array)
 
 			# Collapse runs: get a mean contrast value across runs
 			elif c.average_runs:
-				averaged_array = np.mean(array_list, axis=0)
-				selected_betas[roi_name][condition].append(averaged_array)
+				if np.ndim(valid_array) == 1:
+					selected_betas[roi_name][condition].append(valid_array)
+				elif np.ndim(valid_array) > 1:
+					averaged_array = np.mean(valid_array, axis=1)
+					selected_betas[roi_name][condition].append(averaged_array)
+				else:
+					raise ValueError(
+						f"Unusual number of dimensions for beta arrays: {np.ndim(valid_array)}"
+						"Check the output data: how did you combine it over sessions, runs, subjects?")
 			
 			# Optionally save all averaged betas to disk
 			# TODO: Why here averaged and the contrasts summed?
@@ -176,11 +184,11 @@ for roi_name in roi_names:
 	        print(f"{roi_name}, {cond}: {float(selected_betas[roi_name][cond]):.4f}")
 	    else:
 	        print(f"{roi_name}, {cond}: {np.shape(np.array(selected_betas[roi_name][cond]))}")
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03. Descriptive plotting
 # Plot beta values per ROI (subplot) and condition (x axis)
-# AIM: visualize the range and shape of betas' distributions. 
+# AIM: visualize the range and shape of betas' distributions.
+# TODO: assess significance, no? DIFFERENT FROM ZERO OR NOT? 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 plot_violins_average(
 		selected_betas,
@@ -196,271 +204,195 @@ plot_violins_average(
 		average_voxels=c.average_voxels # only for the filename
 )
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 04. Statistics #TODO: CHECK CORRECTNESS -- smth IS wrong : Bonferroni?!
-# Compare conditions within an ROI (with averaged or not voxels).
+# 04a. Inferential statistics
+# Compare conditions within an ROI (either across runs or voxels).
 # RQ: Is there a significant difference between conditions in the ROI?
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Reshape the data for plotting
+data_rows = []
+for roi_name, cond_dict in selected_betas.items():
+	for cond in conditions:
+		values = cond_dict[cond][0]
+		
+		# Check dimensions in case of a single voxel/run
+		if np.ndim(values) == 0:
+			values_to_iterate = [values]
+		else:
+			values_to_iterate = values
+
+		# Append info for the dataframe
+		for idx, val in enumerate(values_to_iterate):
+			data_rows.append({
+				'ROI': roi_name,
+				'Condition': cond,
+				'Value': val,
+				'Idx': idx + 1,
+				'nVox_nRun': extracted_beta[roi_name][cond][0].shape,
+				'avgVox' : c.average_voxels,
+				'avgRun': c.average_runs
+			})
+
+# Create dataframe
+df = pd.DataFrame(data_rows)
+
+# Rename index column to reflect the condition that was not collapsed.
 if c.average_runs:
-    data_rows = []
-    
-    # 1. Reshape data to keep Run x Voxel pairing
-    for roi_name, cond_dict in extracted_beta.items():
-        
-        # Get the number of runs (should be consistent across conditions)
-        # Assuming cond_dict[cond] is a list of arrays (one array per run)
-        n_runs = len(cond_dict[conditions[0]])
-        
-        # Get the number of voxels (assumed constant across runs)
-        # Extract from the first run of the first condition
-        n_voxels = len(cond_dict[conditions[0]][0])
-        
-        for run_idx in range(n_runs):
-            for voxel_idx in range(n_voxels):
-                # Extract value for Condition 1
-                val_cond1 = cond_dict[conditions[0]][run_idx][voxel_idx]
-                
-                # Extract value for Condition 2
-                val_cond2 = cond_dict[conditions[1]][run_idx][voxel_idx]
-                
-                data_rows.append({
-                    'ROI':       roi_name,
-                    'Voxel_ID':  voxel_idx,    # 0-indexed voxel ID
-                    'Run_ID':    run_idx,      # 0-indexed run ID
-                    'Condition': conditions[0],
-                    'Value':     val_cond1
-                })
-                
-                data_rows.append({
-                    'ROI':       roi_name,
-                    'Voxel_ID':  voxel_idx,
-                    'Run_ID':    run_idx,
-                    'Condition': conditions[1],
-                    'Value':     val_cond2
-                })
-
-    df = pd.DataFrame(data_rows)
-
-    # 2. Pivot to create paired columns
-    # Index: ROI + Voxel + Run. Columns: Conditions.
-    pivot_df = df.pivot_table(
-        index=['ROI', 'Voxel_ID', 'Run_ID'],
-        columns='Condition',
-        values='Value'
-    )
-
-    # 3. Perform Wilcoxon test for each voxel in each ROI
-    results_table = []
-    
-    # Group by ROI and Voxel
-    grouped = pivot_df.groupby(level=['ROI', 'Voxel_ID'])
-    
-    for (roi, voxel_id), group in grouped:
-
-        # Check if both conditions exist for this group
-        if conditions[0] in group.columns and conditions[1] in group.columns:
-            cond1_vals = group[conditions[0]].values
-            cond2_vals = group[conditions[1]].values
-            
-            try:
-                stat, p_val = wilcoxon(cond1_vals, cond2_vals)
-                results_table.append({
-                    'ROI': roi,
-                    'Voxel_ID': voxel_id,
-                    'Statistic': stat,
-                    'P-Value': p_val,
-                    'N': len(cond1_vals)
-                })
-            except Exception as e:
-                # Handle cases with constant values or insufficient data
-                results_table.append({
-                    'ROI': roi,
-                    'Voxel_ID': voxel_id,
-                    'Statistic': np.nan,
-                    'P-Value': np.nan,
-                    'N': len(cond1_vals)
-                })
-        else:
-            results_table.append({
-                'ROI': roi,
-                'Voxel_ID': voxel_id,
-                'Statistic': np.nan,
-                'P-Value': np.nan,
-                'N': len(cond1_vals)
-            })
-
-    results_df = pd.DataFrame(results_table)
-    
-    # Save dataframe
-    results_df.to_csv(
-        c.out_2nd / f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_job-{c.jobName}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}_test-paired_betas.csv",
-        index=False
-    )
-
+	df_renamed = df.rename(columns={"Idx": "Voxel"}, inplace=False)
 elif c.average_voxels:
-	
-	# Reshape the data for plotting	
-	data_rows = []
-	for roi_name, cond_dict in selected_betas.items():
-		for cond in conditions:
-			values = cond_dict[cond][0]
-			
-			for idx, val in enumerate(values):
-				data_rows.append({
-					'ROI': roi_name,
-					'Condition': cond,
-					'Value': val,
-					'Run': idx + 1,
-					'N': len(values)
-				})
-	df = pd.DataFrame(data_rows)
+	df_renamed = df.rename(columns={"Idx": "Run"}, inplace=False)
+print(f"The renamed dataframe:\n{df_renamed.head()}")
 
-	# Perform the statistical test
-	results_table = []
+# Perform the statistical tests for all pairs of conditions in the ROI
+results_table = []
+condition_pairs = list(combinations(conditions, 2))
 
-	# Pivot the data by RUN and ROI
-	pivot_df = df.pivot_table(index=['ROI', 'Run'], columns='Condition', values='Value')
-	
-	# Perform Wilcoxon signed-rank test
-	rois = df['ROI'].unique()
-	for roi in rois:
-		roi_data = pivot_df.loc[roi]
-		stat, p_val = wilcoxon(roi_data[conditions[0]], roi_data[conditions[1]])
+# Pivot the data by IDX (run or voxel) and ROI
+pivot_df = df.pivot_table(index=['ROI', 'Idx'], columns='Condition', values='Value')
+
+# Iterate through the ROIs
+for roi in roi_names:
+	roi_data = pivot_df.loc[roi]
+
+	for cond_a, cond_b in condition_pairs:
+		pair_data = roi_data[[cond_a, cond_b]]
+
+		# Optionally, remove nan values
+		if c.remove_empty:
+			valid_pair_data = pair_data.dropna()
+		else:
+			valid_pair_data = pair_data
+
+		# Number of observations
+		n_obs = len(valid_pair_data)
+
+		# Extract the arrays
+		values_a = valid_pair_data[cond_a].values
+		values_b = valid_pair_data[cond_b].values
+
+		# Perform Wilcoxon signed-rank test
+		stat, p_val = wilcoxon(values_a, values_b)
 		results_table.append({
 			'ROI': roi,
 			'Statistic': stat,
-			'P-Value': p_val,
-			 'N': len(values) # number of observations compared in the t-test
+			'P_value_raw': p_val,
+			'P_value_adj': np.minimum(p_val * n_obs, 1.0), # Bonferroni correction
+			'N_observations': n_obs,
+			'Comparison': f"{cond_a} vs {cond_b}"
 		})
 
-	results_df = pd.DataFrame(results_table)
+# Create the results dataframe
+results_df = pd.DataFrame(results_table)
+print(results_df.head())
 
-	# Save dataframe
-	results_df.to_csv(
-    	c.out_2nd / f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_job-{c.jobName}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}_test-paired_betas.csv",
-    	index=False
-    )
+# Save dataframe
+results_df.to_csv(
+	c.out_2nd / f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_job-{c.jobName}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}_test-paired_betas.csv",
+	index=False
+)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 05a. Statistics Plot per RUN: what am I comparing here? against zero? paired?
-# TODO: Statistics Plot per VOXEL matrix
-
-# Colors
-colors = ['#EEDF5A', '#A8C6FF']
-hue_order = conditions
+# 04b. Plotting the paired results
+# Another plot against zero!
+# TODO: Statistics Plot per RUN: violin plots with ind. run dots connected
+# TODO: Statistics Plot per VOXEL: matrix
+# colors = ['#EEDF5A', '#A8C6FF']
 
 # Figure layout
-n_rows = int(len(c.rois) / plotConf["cols"])
-fig, axes = plt.subplots(
-	n_rows,
-	plotConf["cols"],
-	figsize=plotConf["figsize"],
-	sharey=True
-)
-axes = axes.flatten()
+# n_rows = int(len(c.rois) / plotConf["cols"])
+# fig, axes = plt.subplots(
+# 	n_rows,
+# 	plotConf["cols"],
+# 	figsize=plotConf["figsize"],
+# 	sharey=True
+# )
+# axes = axes.flatten()
 
-# Iterate through the rois
-for i, roi in enumerate(c.rois):
-	ax = axes[i]
+# # Iterate through the rois
+# for i, roi in enumerate(c.rois):
+# 	ax = axes[i]
 	
-	# Filter data for current ROI
-	roi_df = df[df['ROI'] == roi]
+# 	# Filter data for current ROI
+# 	roi_df = df[df['ROI'] == roi]
 	
-	# Create violin shape
-	sns.violinplot(
-		data=roi_df, 
-		x='Condition', 
-		y='Value',
-		hue="Condition",
-		palette=colors, 
-		order=hue_order,
-		ax=ax,
-		inner=None,
-		linewidth=1.5,
-		cut=0
-	)
+# 	# Create violin shape
+# 	sns.violinplot(
+# 		data=roi_df, 
+# 		x='Condition', 
+# 		y='Value',
+# 		hue="Condition",
+# 		palette="Set2", 
+# 		order=conditions,
+# 		ax=ax,
+# 		inner=None,
+# 		linewidth=1.5,
+# 		cut=0
+# 	)
 	
-	# Plot individual points and lines between them
-	roi_pivot = roi_df.pivot(
-		index='Run',
-		columns='Condition',
-		values='Value'
-	)
-	rng = np.random.default_rng(42)
+# 	# Plot individual points and lines between them
+# 	roi_pivot = roi_df.pivot(
+# 		index='Idx',
+# 		columns='Condition',
+# 		values='Value'
+# 	)
+# 	rng = np.random.default_rng(42)
 
-	jitters = {
-		run: rng.uniform(-0.08, 0.08)
-		for run in roi_pivot.index
-	}
+# 	jitters = {
+# 		run: rng.uniform(-0.08, 0.08)
+# 		for run in roi_pivot.index
+# 	}
 
-	for run in roi_pivot.index:
+# 	for run in roi_pivot.index:
 
-		val1 = roi_pivot.loc[run, conditions[0]]
-		val2 = roi_pivot.loc[run, conditions[1]]
+# 		val1 = roi_pivot.loc[run, conditions[0]]
+# 		val2 = roi_pivot.loc[run, conditions[1]]
 
-		j = jitters[run]
+# 		j = jitters[run]
 
-		x1 = 0 + j
-		x2 = 1 + j
+# 		x1 = 0 + j
+# 		x2 = 1 + j
 
-		ax.plot(
-			[x1, x2],
-			[val1, val2],
-			color='gray',
-			alpha=0.3,
-			lw=0.8,
-			zorder=1
-		)
+# 		ax.plot(
+# 			[x1, x2],
+# 			[val1, val2],
+# 			color='gray',
+# 			alpha=0.3,
+# 			lw=0.8,
+# 			zorder=1
+# 		)
 
-		ax.scatter(
-			[x1, x2],
-			[val1, val2],
-			color='black',
-			s=30,
-			alpha=0.7,
-			zorder=10
-		)
+# 		ax.scatter(
+# 			[x1, x2],
+# 			[val1, val2],
+# 			color='black',
+# 			s=30,
+# 			alpha=0.7,
+# 			zorder=10
+# 		)
 	
-	# Set labels and title
-	ax.set_title(
-		f'{roi}',
-		fontsize=plotConf["subplot_fontsize"],
-		fontweight='bold'
-	)
-	ax.set_xlabel("")
-	ax.set_ylabel("")
-
-	# Add p-value text
-	p_val = results_df[results_df['ROI'] == roi]['P-Value'].values[0]
-	sig_marker = ""
-	if not np.isnan(p_val):
-			if p_val < 0.001:
-				sig_marker = "**"
-			elif p_val < 0.05:
-				sig_marker = "*"
-			else:
-				sig_marker = "ns"
-			
-			ax.text(0.5, 0.95, f'p = {p_val:.3f}\n{sig_marker}', 
-					transform=ax.transAxes, 
-					ha='center', va='top', 
-					fontsize=plotConf["subplot_fontsize"]
-					)
+# 	# Set labels and title
+# 	ax.set_title(
+# 		f'{roi}',
+# 		fontsize=plotConf["subplot_fontsize"],
+# 		fontweight='bold'
+# 	)
+# 	ax.set_xlabel("")
+# 	ax.set_ylabel("")
 	
-fig.suptitle(
-	f"Averaged across voxels: {c.average_voxels}",
-	fontsize=plotConf["fig_fontsize"],
-	fontweight="bold"
-)
-fig.supxlabel('Condition', fontsize=plotConf["fig_fontsize"])
-fig.supylabel('Beta Estimate', fontsize=plotConf["fig_fontsize"])
-plt.tight_layout()
+# fig.suptitle(
+# 	f"Averaged across voxels: {c.average_voxels}",
+# 	fontsize=plotConf["fig_fontsize"],
+# 	fontweight="bold"
+# )
+# fig.supxlabel('Condition', fontsize=plotConf["fig_fontsize"])
+# fig.supylabel('Beta Estimate', fontsize=plotConf["fig_fontsize"])
+# plt.tight_layout()
 
-if c.save_fig:
-	fig_name = f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_job-{c.jobName}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}-one_sample.png"
-	fig_path = c.out_2nd / fig_name
-	plt.savefig(fig_path, dpi=plotConf["dpi"], bbox_inches="tight")
+# if c.save_fig:
+# 	fig_name = f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_job-{c.jobName}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}-one_sample.png"
+# 	fig_path = c.out_2nd / fig_name
+# 	plt.savefig(fig_path, dpi=plotConf["dpi"], bbox_inches="tight")
 
-if c.show_fig:
-	plt.show()
-else:
-	plt.close(fig)
+# if c.show_fig:
+# 	plt.show()
+# else:
+# 	plt.close(fig)
