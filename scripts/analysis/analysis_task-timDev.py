@@ -63,9 +63,9 @@ subjFolders = [('_sesID_%s_subID_%s' % (ses, sub),
 #                for sub in c.subIDs]
 substitutions.extend(subjFolders)
 datasink_T1w.inputs.substitutions = substitutions
-datasink_T1w.inputs.substitutions += [('beta_', f"beta_space_{c.space}_"),]
-datasink_T1w.inputs.substitutions += [('con_',  f"con_space_{c.space}_"),]
-datasink_T1w.inputs.substitutions += [('spmT_', f"spmT_space_{c.space}_"),]
+datasink_T1w.inputs.substitutions += [('beta_', f"beta_space-{c.space}_"),]
+datasink_T1w.inputs.substitutions += [('con_',  f"con_space-{c.space}_"),]
+datasink_T1w.inputs.substitutions += [('spmT_', f"spmT_space-{c.space}_"),]
 
 # Define a Node that extracts filepaths for all files required for the analysis
 infohandle = pe.Node(

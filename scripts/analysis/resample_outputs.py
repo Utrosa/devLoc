@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <15-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <16-09-2026 m.utrosa@bcbl.eu>
 # Citrix: source activate localizer_fMRI
 # Local:  conda activate localizer_fMRI
 # -----------------------------------------------------------------------------
@@ -16,12 +16,13 @@ import subprocess
 import config as c
 from utils import resample_img, compare_img
 # TODO: update so it does either conversion to MNI or T1, depending on space!
-# TODO: the output from analysis should be which space (?!)
+#       Now assuming T1w space for the output from the analysis
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 01. Beta, contrast, and spmT images: from BOLDREF FOV to T1w FOV ------------
 # The anatomical reference is the same for all analysis outputs.
 T1w = c.anatPath / f"sub-{c.subID:02d}_ses-{c.anatID:02d}_desc-preproc_T1w.nii.gz"
+MNI = c.homePath / "templates" / "tpl-MNI152NLin2009cAsym_res-01_desc-brain_T1w.nii.gz"
 
 # Collect the files to resample and specify their resampled filename
 for sesID in c.sesIDs:
@@ -43,13 +44,18 @@ for sesID in c.sesIDs:
                 if not results_fold.exists():
                     raise FileNotFoundError("The folder does not exist. Check the outputs of the analysis.")
 
-            # All results are subject to the same transform file
-            from_boldref_to_T1w = c.funcPath / f"ses-{sesID:02d}" / "func" / f"sub-{c.subID:02d}_ses-{sesID:02d}_task-{c.task}_acq-{acqID}_from-boldref_to-T1w_mode-image_desc-coreg_xfm.txt"
-            if not from_boldref_to_T1w.exists():
-                print(f"\nTransformation file is missing for sub-{c.subID}_ses-{sesID}_acq-{acqID}:\n {from_boldref_to_T1w}")
+            # All results are subject to the same type of transform file or the same file in case of concat
+            from_boldref_to_T1w = c.funcPath / f"ses-{sesID:02d}" / "func" / f"sub-{c.subID:02d}_ses-{sesID:02d}_task-{c.task}_acq-{acqID}_from-boldref_to-T1w_mode-image_desc-coreg_xfm.txt"            
+            from_T1_to_MNI = c.anatPath / f"sub-{c.subID:02d}_ses-{sesID:02d}_from-T1w_to-MNI152NLin2009cAsy_mode-image_xfm.h5"
+            
+            # Check transform files exits
+            if not from_boldref_to_T1w.exists() or not from_boldref_to_T1w.exists():
+                print(
+                    f"\nOne of the two transformation files are missing for sub-{c.subID}_ses-{sesID}_acq-{acqID}:"
+                    f"\n {from_boldref_to_T1w.name} or {from_T1_to_MNI.name}")
             
             # Betas
-            all_betas = list(results_fold.glob(f"beta_space-{c.space}*.nii*"))
+            all_betas = list(results_fold.glob(f"beta_space-T1w*.nii*"))
             betas = [beta for beta in all_betas if c.resampled_stem not in beta.stem]
             for beta in betas:
 
@@ -59,11 +65,13 @@ for sesID in c.sesIDs:
                 
                 # Check that the resampled file does not already exist 
                 if not beta_new_path.exists():      
-                    resample_img(beta, T1w, beta_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
-                    compare_img(beta, T1w, beta_new_path, verbose=c.verbose)
-
+                    if c.space == "T1w":
+                        resample_img(beta, T1w, beta_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
+                        compare_img(beta, T1w, beta_new_path, verbose=c.verbose)
+                    else:
+                        raise ValueError(f"What is the desired coordinate space? Not T1w nor MNI?")
             # Contrasts
-            all_cons = list(results_fold.glob(f"con_space-{c.space}*.nii*"))
+            all_cons = list(results_fold.glob(f"con_space-T1w*.nii*"))
             cons = [con for con in all_cons if c.resampled_stem not in con.stem]
             for con in cons:
 
@@ -72,12 +80,15 @@ for sesID in c.sesIDs:
                 con_new_path = con.parent / con_new_name
                 
                 # Check that the resampled file does not already exist 
-                if not con_new_path.exists():      
-                    resample_img(con, T1w, con_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
-                    compare_img(con, T1w, con_new_path, verbose=c.verbose)
-            
+                if not con_new_path.exists():
+                    if c.space == "T1w":     
+                        resample_img(con, T1w, con_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
+                        compare_img(con, T1w, con_new_path, verbose=c.verbose)
+                    else:
+                        raise ValueError(f"What is the desired coordinate space? Not T1w nor MNI?")
+
             # SPM t-images
-            all_spmts = list(results_fold.glob(f"spmT_space-{c.space}*.nii*"))
+            all_spmts = list(results_fold.glob(f"spmT_space-T1w*.nii*"))
             spmts = [spmt for spmt in all_spmts if c.resampled_stem not in spmt.stem]
             for spmt in spmts:
 
@@ -86,6 +97,9 @@ for sesID in c.sesIDs:
                 spmt_new_path = spmt.parent / spmt_new_name
                 
                 # Check that the resampled file does not already exist 
-                if not spmt_new_path.exists():      
-                    resample_img(spmt, T1w, spmt_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
-                    compare_img(spmt, T1w, spmt_new_path, verbose=c.verbose)
+                if not spmt_new_path.exists():
+                    if c.space == "T1w":
+                        resample_img(spmt, T1w, spmt_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
+                        compare_img(spmt, T1w, spmt_new_path, verbose=c.verbose)
+                    else:
+                        raise ValueError(f"What is the desired coordinate space? Not T1w nor MNI?")

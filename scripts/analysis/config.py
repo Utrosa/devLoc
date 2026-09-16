@@ -131,10 +131,10 @@ remove_empty   = False  # Remove or not empty arrays (e.g.: If we do not average
 subIDs = [5]
 subID  = 5
 anatID = 2
-space  = "T1w" #TODO: What is the difference between T1w and T1wFOV?
+space  = "T1w" #MNI or T1w TODO: What is the difference between T1w and T1wFOV?
 task   = "timDev"
-sesIDs = [6] # 2, 3, 4, 5, 6, 7
-sessions = 6 # appears in the filenames 234567 # TODO: can I remove this unnecessary clutter?
+sesIDs = [3, 4, 5, 6, 7] # 2, 3, 4, 5, 6, 7
+sessions = 34567 # appears in the filenames 234567 # TODO: can I remove this unnecessary clutter?
 acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC", "BLOCK2", "BLOCK3", "BLOCK4"
 blocks = "1234"  # TODO: can I remove this unnecessary clutter?
 
