@@ -10,8 +10,8 @@ source activate localizer_fMRI
 
 # Job-specific parameters
 subID=5
-acqIDs=("FUNCLOC") # "FUNCLOC" "BLOCK1" "BLOCK2" "BLOCK3" "BLOCK4"
-task="localizer"   # timDev or localizer or devLoc
+acqIDs=("BLOCK1" "BLOCK2" "BLOCK3" "BLOCK4") # ("FUNCLOC" "BLOCK1" "BLOCK2" "BLOCK3" "BLOCK4")
+task="timDev"   # timDev or localizer or devLoc
 denoising="True"  # NORDIC applied or not during preproc
 biopac=1 # exclude (0) or include (1) BIOPAC physiological regressors
 
@@ -50,7 +50,7 @@ confound_keys=( \
 ## b.) Optionally adds physiological regressors (TAPAS) to the confounds dataframe.
 
 echo "**************** STEP 1: Filtering confounds & artifacts ***************"
-for sesID in 2 3 4 5 6 7; do
+for sesID in 7; do
 	if [[ "$biopac" -eq 1 ]]; then
 		python -m scripts.analysis.filter_artifacts \
 				"$homePath" "$mriPath" "$physioPath" \

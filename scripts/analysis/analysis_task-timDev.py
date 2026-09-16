@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <11-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <16-09-2026 m.utrosa@bcbl.eu>
 '''
 fMRI: GLM model fitting with fixed effects
 
@@ -63,9 +63,9 @@ subjFolders = [('_sesID_%s_subID_%s' % (ses, sub),
 #                for sub in c.subIDs]
 substitutions.extend(subjFolders)
 datasink_T1w.inputs.substitutions = substitutions
-datasink_T1w.inputs.substitutions += [('beta_', c.beta_filename),]
-datasink_T1w.inputs.substitutions += [('con_',  c.con_filename),]
-datasink_T1w.inputs.substitutions += [('spmT_', c.spmT_filename),]
+datasink_T1w.inputs.substitutions += [('beta_', f"beta_space_{c.space}_"),]
+datasink_T1w.inputs.substitutions += [('con_',  f"con_space_{c.space}_"),]
+datasink_T1w.inputs.substitutions += [('spmT_', f"spmT_space_{c.space}_"),]
 
 # Define a Node that extracts filepaths for all files required for the analysis
 infohandle = pe.Node(
@@ -148,7 +148,14 @@ if c.artDetect:
 # Create a Bunch object by parsing all event files: timDev & freqDev are separx<wate Bunch objects.
 bunch_log = pe.Node(
     Function(
-        input_names  = ["time_logs", "time_binary", "time_abs", "time_groups", "add_freqDev"],
+        input_names  = [
+            "time_logs",
+            "time_binary", 
+            "time_abs", 
+            "time_groups", 
+            "add_freqDev",
+            "contrast_conditions"
+        ],
         output_names = ["timfreq_bunch_dict"],
         function = timfreqDev
     ),
@@ -158,6 +165,7 @@ bunch_log.inputs.time_binary = c.binary
 bunch_log.inputs.time_abs    = c.absolute
 bunch_log.inputs.time_groups = c.groups
 bunch_log.inputs.add_freqDev = c.freqDev_jobName
+bunch_log.inputs.contrast_conditions = c.conditions
 
 # Add regressors to Bunch
 bunch_reg = pe.Node(

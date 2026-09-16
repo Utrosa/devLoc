@@ -211,7 +211,7 @@ def filter_artifacts(homePath, mriPath, physioPath, subID, sesID, task, denoisin
 			print(f"~~~~~~~~ Filtered confounds & artifacts for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID} ~~~~~~~~")
 		else:
 			raise FileNotFoundError(
-				f"Timeseries ({timeseries}).tsv file was not found in {mriPath} for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}.")
+				f"\nTimeseries for configuration: {confound_conf}) was not found in {mriPath} for sub-{subID:02d}, ses-{sesID:02d}, task-{task}, acq-{acqID}.")
 
 	# 02. ---------- Save a summary report on which counfounds and outliers were selected.
 	readme_file = outputPath / f"sub-{subID:02d}_ses-{sesID:02d}_summary.md"

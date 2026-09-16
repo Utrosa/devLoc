@@ -17,6 +17,61 @@ from nilearn.image import resample_to_img
 # Import custom-made functions
 import grabber
 
+def check_for_missing_bunch_conditions(contrast_conditions, conditions_found, log_bunch, logfilepath):
+    """
+    The designs script includes functions that read events that occured during the experiment.
+    It could happen that a designed event does not occur during a run.
+    In that case, the designs script will return Bunch objects without that event (because the
+    event is not in the log).
+
+    The contrastor node in the GLM analysis with Nipype will fail if all runs do not have the
+    same conditions. Therefore, we must add missing conditions to the bunch with this function.
+    contrast_conditions: The levels of the manipulated variables in the experimental task that
+                         are to be used in contrast estimation.
+    conditions_found: The levels of the manipulated variables in the experimental task that
+                      are present in logs of the run of the task.
+    log_bunch: The bunch created by reading the logfiles.
+    logfilepath: A Path to the log from which the log_bunch is made.
+    """
+    from nipype.interfaces.base import Bunch
+
+    # Identify missing conditions and their positions
+    missing = [con for ix, con in enumerate(contrast_conditions) if con not in conditions_found]
+
+    if missing:
+        logname = Path(logfilepath).name
+        print(f"\nThe logfile with name {logname} is missing condition/s: {missing}.")
+
+        # Build new lists that match the length of contrast_conditions
+        new_onsets = [[] for _ in range(len(contrast_conditions))]
+        new_durations = [[] for _ in range(len(contrast_conditions))]
+        
+        # Fill in existing data where conditions match
+        # Where they don't match - leave empty lists
+        for idx, cond in enumerate(conditions_found):
+            if cond in contrast_conditions:
+                target_idx = contrast_conditions.index(cond)
+                
+                # Find the corresponding onset and duration from the original bunch
+                # Assuming original bunch has matching order for existing conditions
+                try:
+                    orig_idx = conditions_found.index(cond)
+                    new_onsets[target_idx] = log_bunch.onsets[orig_idx]
+                    new_durations[target_idx] = log_bunch.durations[orig_idx]
+                except (IndexError, ValueError):
+                    pass
+        
+        # Update the timfreq_bunch with the complete structure
+        timfreq_bunch_corrected = Bunch(
+            conditions=contrast_conditions,
+            onsets=new_onsets,
+            durations=new_durations)
+    else:
+        timfreq_bunch_corrected = log_bunch
+        print("\nAll conditions are present, no changes needed.")
+
+    return timfreq_bunch_corrected
+
 def find_dev_group(delta_str, groups):
     """
     Determines the group name for a given delta string based on the groups dictionary.

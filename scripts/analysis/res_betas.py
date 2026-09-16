@@ -396,3 +396,10 @@ results_df.to_csv(
 # 	plt.show()
 # else:
 # 	plt.close(fig)
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# 05. Inferential statistics
+# Compare betas to the residuals
+# RQ: Is there a significant difference between residuals and betas?
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# TODO!

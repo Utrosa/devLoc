@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <10-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <16-09-2026 m.utrosa@bcbl.eu>
 """
 Configuration for the following scripts:
 - resample_atlas.py
@@ -21,8 +21,8 @@ import matplotlib.pyplot as plt
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 02. Define the pipeline 
-develop_mode = True  # developping mode
-denoising    = True  # denoising from prepro (NORDIC)
+develop_mode = True  # If True in developping mode, if False, test mode.
+denoising    = True  # If True, working in NORDIC Denoised data (preproc)
 verbose      = False
 
 # How do we model deviant events? See deviants.yaml
@@ -34,6 +34,7 @@ else:
     jobName = timDev_jobName
 
 # Conditions determine the beta order. Check consistency with SPM design matrix.
+# These are passed to the contrastor node in the analysis.
 with open("deviants.yaml", "r") as f:
     devs = yaml.safe_load(f)
 timDev  = devs["timDev"][timDev_jobName]
@@ -47,7 +48,7 @@ else:
     conditions = timDev["conditions"]
     contrast_weights = timDev["weights"]
 
-# Check correctness
+# Check correctness # TODO: WHAT IS THIS USED FOR LOL?
 conditions_int = list(range(1, len(conditions) + 1))
 if not len(conditions_int) == len(conditions):
     raise ValueError(
@@ -115,11 +116,11 @@ contrasts = [(jobName, 'T', conditions, contrast_weights)]
 
 # 03c. Specify data handling and plotting preferences for 1st level results
 save_roi       = False  # applies to extracted ROI arrays
-show_fig       = True   # applies to figures with statistical results
+show_fig       = False  # applies to figures with statistical results // blocking function
 save_fig       = True   # applies to figures with statistical results
 save_summed    = False  # applies to the contrasts images
 save_averaged  = False  # averaged beta arrays
-average_voxels = False   # CONTRASTS: If True, one value (array) across VOXELS.
+average_voxels = False  # CONTRASTS: If True, one value (array) across VOXELS.
                         # If both are False, the extracted roi array has shape (n_runs, n_voxels)
 average_runs   = True   # If True, collapse runs and return a mean across runs.                  
 remove_empty   = False  # Remove or not empty arrays (e.g.: If we do not average across voxels, 
@@ -132,10 +133,10 @@ subID  = 5
 anatID = 2
 space  = "T1w" #TODO: What is the difference between T1w and T1wFOV?
 task   = "timDev"
-sesIDs = [2] # 2, 3, 4, 5, 6, 7
-sessions = 2 # appears in the filenames 234567
+sesIDs = [6] # 2, 3, 4, 5, 6, 7
+sessions = 6 # appears in the filenames 234567 # TODO: can I remove this unnecessary clutter?
 acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC", "BLOCK2", "BLOCK3", "BLOCK4"
-blocks = "1234" # appears in the filenames 1234
+blocks = "1234"  # TODO: can I remove this unnecessary clutter?
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 05. Specify project directories

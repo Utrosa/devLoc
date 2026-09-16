@@ -17,6 +17,7 @@ TODO: systemize arguments -- can they all have the same name, so it's easier
 to adapt the analysis for a different design?
 TODO: extend regressors for freqDev (not for my project)
 TODO: all designs could return a dict so we have a mapping between log and bunch
+TODO: add check missing bunch conditions to other functions than timfreqDev
 
 '''
 def localizer(logfilepath):
@@ -416,7 +417,7 @@ def freqDev(logfilepaths):
 
     return design_info_list
 
-def timfreqDev(time_logs, time_binary, time_abs, time_groups, add_freqDev):
+def timfreqDev(time_logs, time_binary, time_abs, time_groups, add_freqDev, contrast_conditions):
     """
     Joins the events of timDev and freqDev tasks from timDev log file. 
 
@@ -429,12 +430,14 @@ def timfreqDev(time_logs, time_binary, time_abs, time_groups, add_freqDev):
         time_groups: dict/bool, a sorted dictionary of upper bounds (keys) and names for the timing 
                      deviants groups they create (values). Default to False (no grouping).
         add_freqDev: If True (str), adding freqDev Bunch. If False, returning only timDev Bunch.
+        contrast_conditions: The conditions passed to spm.EstimateContrast() node in the analysis.
     Returns:
         list: a list of lists with Bunch objects containing conditions, onsets, and durations.
     """
     import csv, warnings
     from pathlib import Path
     from nipype.interfaces.base import Bunch
+    from utils import check_for_missing_bunch_conditions
 
     timfreq_bunch_dict = {}
     for time_log in time_logs:
@@ -561,7 +564,7 @@ def timfreqDev(time_logs, time_binary, time_abs, time_groups, add_freqDev):
         
         # Create timing deviancy Bunch 
         time_bunch = timDevCat1(time_log, time_groups, time_binary, time_abs)
-
+        
         # Create frequency deviancy Bunch
         if add_freqDev:
             
@@ -626,15 +629,23 @@ def timfreqDev(time_logs, time_binary, time_abs, time_groups, add_freqDev):
         else:
             timfreq_bunch = time_bunch
 
-        # Append to the list of Bunch objects
-        timfreq_bunch_dict[Path(time_log).stem] = timfreq_bunch
+        # Check that all desired conditions were found in the log.
+        # If not, add them but with empty event onsests and durations
+        conditions_found = timfreq_bunch.conditions
+        timfreq_bunch_corrected = check_for_missing_bunch_conditions(
+            contrast_conditions,
+            conditions_found,
+            timfreq_bunch,
+            time_log)
+
+        # Append to Bunch objects dict
+        timfreq_bunch_dict[Path(time_log).stem] = timfreq_bunch_corrected
 
         # Print an example of the Bunch conditions to terminal
         first_key = next(iter(timfreq_bunch_dict))
         first_value = timfreq_bunch_dict[first_key]
         print(
             f"\nThe Bunch conditions of `timfreqDev` design for {first_key} are:"
-            f"\n{first_value.conditions}\n"
-        )
+            f"\n{first_value.conditions}.")
 
     return timfreq_bunch_dict
