@@ -72,6 +72,7 @@ for b in range(1, len(conditions) + 1):
     beta_name = f"beta_{c.resampled_stem}_{b:04d}.nii"
 
     # Define beta paths
+    # TODO: this doesn't care about sessions ...clear
     beta_paths = list(c.dataPath.rglob(beta_name))
 
     for beta_path in beta_paths:
@@ -133,8 +134,8 @@ for roi_name in roi_names:
 	# Iterate through the conditions (the SPM regressors)
 	for condition in conditions:
 
-		# Get a list of arrays (n_observations length)	
-		array_list = roi_dict[condition][0]
+		# Get a list of arrays (n_observations length)
+		array_list = roi_dict[condition]
 
 		# Optionally, remove empty arrays (zero values)
 		if c.remove_empty:
@@ -149,15 +150,15 @@ for roi_name in roi_names:
 
 			# Collapse voxels: get a mean contrast value across voxels
 			if c.average_voxels:
-				averaged_array = np.mean(valid_array, axis=0)
+				averaged_array = np.mean(valid_array, axis=-1)
 				selected_betas[roi_name][condition].append(averaged_array)
 
 			# Collapse runs: get a mean contrast value across runs
 			elif c.average_runs:
 				if np.ndim(valid_array) == 1:
 					selected_betas[roi_name][condition].append(valid_array)
-				elif np.ndim(valid_array) > 1:
-					averaged_array = np.mean(valid_array, axis=1)
+				elif np.ndim(valid_array) == 2:
+					averaged_array = np.mean(valid_array, axis=0)
 					selected_betas[roi_name][condition].append(averaged_array)
 				else:
 					raise ValueError(

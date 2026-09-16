@@ -563,7 +563,7 @@ def timfreqDev(time_logs, time_binary, time_abs, time_groups, add_freqDev, contr
             return design_info
         
         # Create timing deviancy Bunch 
-        time_bunch = timDevCat1(time_log, time_groups, time_binary, time_abs)
+        time_bunch = timDevCat1(time_log, time_binary, time_abs, time_groups)
         
         # Create frequency deviancy Bunch
         if add_freqDev:

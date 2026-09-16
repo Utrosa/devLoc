@@ -26,7 +26,7 @@ denoising    = True  # If True, working in NORDIC Denoised data (preproc)
 verbose      = False
 
 # How do we model deviant events? See deviants.yaml
-timDev_jobName  = "when22"
+timDev_jobName  = "when11"
 freqDev_jobName = "what" # False or "what"
 if freqDev_jobName:
     jobName  = timDev_jobName + freqDev_jobName
@@ -120,9 +120,9 @@ show_fig       = False  # applies to figures with statistical results // blockin
 save_fig       = True   # applies to figures with statistical results
 save_summed    = False  # applies to the contrasts images
 save_averaged  = False  # averaged beta arrays
-average_voxels = False  # CONTRASTS: If True, one value (array) across VOXELS.
+average_voxels = True   # CONTRASTS: If True, one value (array) across VOXELS.
                         # If both are False, the extracted roi array has shape (n_runs, n_voxels)
-average_runs   = True   # If True, collapse runs and return a mean across runs.                  
+average_runs   = False  # If True, collapse runs and return a mean across runs.                  
 remove_empty   = False  # Remove or not empty arrays (e.g.: If we do not average across voxels, 
 					    # do we, when averaging across runs, include voxels that have zero 
 					    # beta values or not?)
@@ -133,10 +133,10 @@ subID  = 5
 anatID = 2
 space  = "T1w" #MNI or T1w TODO: What is the difference between T1w and T1wFOV?
 task   = "timDev"
-sesIDs = [3, 4, 5, 6, 7] # 2, 3, 4, 5, 6, 7
-sessions = 34567 # appears in the filenames 234567 # TODO: can I remove this unnecessary clutter?
+sesIDs = [3] # 2, 3, 4, 5, 6, 7
+sessions = 3 # appears in the filenames 234567 # TODO: readd to plots?
 acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC", "BLOCK2", "BLOCK3", "BLOCK4"
-blocks = "1234"  # TODO: can I remove this unnecessary clutter?
+blocks = "1234" # TODO: Potentially can delete ?
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 05. Specify project directories

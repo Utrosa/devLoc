@@ -97,7 +97,7 @@ infohandle = pe.Node(
             "TR"
         ],
         function = grab_objects),
-name = "infohandle"
+    name = "infohandle"
 )
 infohandle.inputs.anatID   = c.anatID
 infohandle.inputs.homePath = str(c.homePath)
