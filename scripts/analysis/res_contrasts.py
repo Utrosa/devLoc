@@ -539,52 +539,52 @@ if c.show_fig:
 #             'Run_ID': list(range(1, n_runs + 1)) * 2
 #         })
         
-#         # Ensure consistency in coloring
-#         unique_rois = plot_df['ROI'].unique()
-#         current_palette = {roi_a_name: cb_palette[0], roi_b_name: cb_palette[1]}
+        # # Ensure consistency in coloring
+        # unique_rois = plot_df['ROI'].unique()
+        # current_palette = {roi_a_name: cb_palette[0], roi_b_name: cb_palette[1]}
 
-#         # A. Plot split violins
-#         sns.violinplot(
-#             data=plot_df, 
-#             x='ROI', 
-#             y='Value',
-#             hue='ROI', 
-#             ax=ax,
-#             palette=current_palette, 
-#             hue_order=[roi_a_name, roi_b_name],
-#             split=True, 
-#             inner=None,
-#             linewidth=1.5,
-#             alpha=0.8,
-#             legend=False
-#         )
+        # # A. Plot split violins
+        # sns.violinplot(
+        #     data=plot_df, 
+        #     x='ROI', 
+        #     y='Value',
+        #     hue='ROI', 
+        #     ax=ax,
+        #     palette=current_palette, 
+        #     hue_order=[roi_a_name, roi_b_name],
+        #     split=True, 
+        #     inner=None,
+        #     linewidth=1.5,
+        #     alpha=0.8,
+        #     legend=False
+        # )
         
-#         # B. Plot individual points with controlled jitter + correct connections
-#         rng = np.random.default_rng(42)
-#         jitter_strength = 0.12
+        # # B. Plot individual points with controlled jitter + correct connections
+        # rng = np.random.default_rng(42)
+        # jitter_strength = 0.12
 
-#         # deterministic jitter for pairing consistency
-#         jitter_a = rng.uniform(-jitter_strength, jitter_strength, n_runs)
-#         jitter_b = rng.uniform(-jitter_strength, jitter_strength, n_runs)
+        # # deterministic jitter for pairing consistency
+        # jitter_a = rng.uniform(-jitter_strength, jitter_strength, n_runs)
+        # jitter_b = rng.uniform(-jitter_strength, jitter_strength, n_runs)
 
-#         x_a = np.zeros(n_runs) + jitter_a
-#         x_b = np.ones(n_runs) + jitter_b
+        # x_a = np.zeros(n_runs) + jitter_a
+        # x_b = np.ones(n_runs) + jitter_b
 
-#         # Scatter individual constrast estimate points
-#         ax.scatter(x_a, data_a,
-#                 color='black', s=35, alpha=0.8,
-#                 edgecolor='black', linewidth=1, zorder=10)
+        # # Scatter individual constrast estimate points
+        # ax.scatter(x_a, data_a,
+        #         color='black', s=35, alpha=0.8,
+        #         edgecolor='black', linewidth=1, zorder=10)
 
-#         ax.scatter(x_b, data_b,
-#                 color='black', s=35, alpha=0.8,
-#                 edgecolor='black', linewidth=1, zorder=10)
+        # ax.scatter(x_b, data_b,
+        #         color='black', s=35, alpha=0.8,
+        #         edgecolor='black', linewidth=1, zorder=10)
 
-#         # Draw paired connections
-#         for i in range(n_runs):
-#             ax.plot([x_a[i], x_b[i]],
-#                     [data_a[i], data_b[i]],
-#                     color='gray', linewidth=1, alpha=0.6,
-#                     zorder=5, solid_capstyle='round')
+        # # Draw paired connections
+        # for i in range(n_runs):
+        #     ax.plot([x_a[i], x_b[i]],
+        #             [data_a[i], data_b[i]],
+        #             color='gray', linewidth=1, alpha=0.6,
+        #             zorder=5, solid_capstyle='round')
         
 #         # C. Overlay means # TODO: is this necessary
 #         # mean_a = np.mean(data_a)

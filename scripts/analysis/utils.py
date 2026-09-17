@@ -302,26 +302,27 @@ def plot_violins(mask_paths, subID, sesID, acqIDs, out_dir, space, scale):
         plt.savefig(fig_path, dpi = 200, bbox_inches = "tight")
         plt.close(fig)
 
-def plot_violins_average(betas, subID, plot_rois, plot_conf, out_dir, space, scale, save, show, average_runs, average_voxels):
+def plot_violins_zero_betas(betas, stats, subID, plot_rois, plot_conf, out_dir, space, job, save, show, average_runs, average_voxels):
     """
     Plots the input data per ROI (subplots) and per condition (x axis categories).
     Depending on betas' structure, individual values in violin plots can be per run or per voxel.
 
     Parameters:
     - betas: nested dict with a list of beta arrays (single or multiple values) per ROI and condition.
+    - stats: a dataframe with inferential results comparing beta distribution against zero.
     - subID: integer number, identifying the participant.
     - plot_rois: list of ROI labels. These will be the subplots of the figure.
     - plot_conf: dictionary with plot configuration (the number of columns, ...).
     - out_dir: string, specifying the folder name for saving the results as .nii.gz.
     - space: string, coordinate space of the input and output data (native T1w or MNI).
-    - scale: If True, all subplots share the same y axis (scaled).
+    - job: string, name of the analysis performed.
     - save: If True, saves the figure to disk.
     - show: If True, shows the figure from terminal.
     - average_runs: If True, "beta_array" is list with a single array of n_voxel values.
     - average_voxels: If True, "beta_array" is a list of n_runs integers.
 
     Returns:
-    - Figure with violin subplots saved as .png
+    - Figure with violin subplots either displayed or saved.
     """
 
     # Initialize a list to store values 
@@ -356,6 +357,8 @@ def plot_violins_average(betas, subID, plot_rois, plot_conf, out_dir, space, sca
 
     # Plotting
     for i, roi in enumerate(plot_rois):
+        
+        # Get the axis
         ax = axes[i]
         
         # Filter data for the current ROI
@@ -368,22 +371,70 @@ def plot_violins_average(betas, subID, plot_rois, plot_conf, out_dir, space, sca
             y="values",
             hue="cond",
             palette=violins,
-            inner="point", # show individual observations
+            inner="point", # show individual observations: point
             legend=False,
             cut=0, # limit the violin within the data range
             ax=ax
         )
 
-        ax.set_title(f"{roi}", fontsize=plot_conf["subplot_fontsize"])
-        ax.set_xlabel("", fontsize=plot_conf["subplot_fontsize"])
-        ax.set_ylabel("", fontsize=plot_conf["subplot_fontsize"])
+        # Spines
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_linewidth(1)
+        ax.spines['left'].set_linewidth(1)
 
         # Add reference line at y=0
         ax.axhline(0, color='black', linestyle='--', linewidth=1.5, alpha=0.8, zorder=1)
 
-        # Optionally, limit the y axis
-        if scale == True:
-            ax.set_ylim(-10, 10)
+        # Get y limits
+        y_min, y_max = ax.get_ylim()
+        y_range = y_max - y_min
+
+        # Add suplot titles and axis lables
+        ax.set_title(f"{roi}", y=1.05, fontsize=plot_conf["subplot_fontsize"], fontweight="bold")
+        ax.set_xlabel("", fontsize=plot_conf["subplot_fontsize"])
+        ax.set_ylabel("", fontsize=plot_conf["subplot_fontsize"])
+
+        # Add significance annotation
+        star_y = y_max + (y_range * 0.02) 
+        text_y = y_max - (y_range * 0.02)
+
+        for j, cond in enumerate(conds):
+            
+            # Filter stats by roi and regressor
+            p_val_series = stats.loc[
+                (stats["ROI"] == roi) & (stats["regressor"] == cond), 
+                'p_value_bonferroni']
+            p_val = p_val_series.values[0] # Extract the scalar value
+            is_sig = p_val < 0.05
+            
+            # Determine label
+            if is_sig:
+                if p_val < 0.001:
+                    label = '***'
+                    p_str = f"{p_val:.3f}"
+                elif p_val < 0.01:
+                    label = '**'
+                    p_str = f"{p_val:.3f}"
+                else:
+                    label = '*'
+                    p_str = f"{p_val:.3f}"
+                color = 'black'
+                font_weight = "bold"
+            else:
+                label = "ns"
+                p_str = ""
+                color = 'gray'
+                font_weight = "normal"
+
+            # Place annotation centered over the specific violin (x=j)
+            # j corresponds to the integer position of the condition on the x-axis
+            ax.text(j, star_y, label, ha='center', va='bottom', 
+                    fontsize=plot_conf["subplot_fontsize"] - 2, fontweight=font_weight, color=color)
+            
+            if p_str:
+                ax.text(j, text_y, p_str, ha='center', va='bottom', 
+                        fontsize=plot_conf["subplot_fontsize"] - 2, color=color)
 
         # Set figure title and shared axis labels
         fig.suptitle(
@@ -402,7 +453,7 @@ def plot_violins_average(betas, subID, plot_rois, plot_conf, out_dir, space, sca
 
     # Optionally save
     if save:
-        fig_name = f"sub-{subID:02d}_space-{space}_avgVox-{average_voxels}_avgRun-{average_runs}.png"
+        fig_name = f"sub-{subID:02d}_space-{space}_job-{job}_avgVox-{average_voxels}_avgRun-{average_runs}_zero-betas.png"
         fig_path = out_dir / fig_name
         plt.savefig(fig_path, dpi=plot_conf["dpi"], bbox_inches="tight")
 
@@ -411,6 +462,166 @@ def plot_violins_average(betas, subID, plot_rois, plot_conf, out_dir, space, sca
         plt.show()
     else:
         plt.close(fig)
+
+def plot_violins_betas_paired(selected_betas, stats, subID, out_dir, space, job, plot_conf, save, show, average_runs, average_voxels):
+
+    # Filter for sig. results
+    p_value = "P_value_raw"
+    betas = stats[stats[p_value] < 0.05]
+    betas.reset_index(drop=True, inplace=True)
+
+    if betas.empty:
+        print("No ROI distinguishes between a regressor pair significantly.")
+    else:
+        # Figure layout
+        fig, axes = plt.subplots(
+            int(np.ceil(len(betas) / plot_conf["cols"])),
+            plot_conf["cols"],
+            figsize=plot_conf["figsize"],
+            sharey=True
+        )
+        axes = axes.flatten()
+
+        # Colors
+        cb_palette = ["#FFC20A", "#0C7BDC"]
+
+        # Iterate through the filtered rois
+        for row in betas.itertuples():
+            ax = axes[row.Index]
+
+            # Get conditions
+            cond1 = row.Comparison[0]
+            cond2 = row.Comparison[1]
+
+            # Extract the sig. regressor pair data
+            roi_df1 = selected_betas[row.ROI][cond1][0]
+            roi_df2 = selected_betas[row.ROI][cond2][0]
+            n_runs  = len(roi_df2)
+
+            # Create plot df
+            plot_df = pd.DataFrame({
+                'ROI': row.ROI,
+                'Cond': [cond1] * n_runs + [cond2] * n_runs,
+                'Value': np.concatenate([roi_df1, roi_df2]),
+                'Run_ID': list(range(1, n_runs + 1)) * 2
+                })
+
+            # Ensure consistency in coloring
+            unique_rois = plot_df['ROI'].unique()
+            current_palette = {cond1: cb_palette[0], cond2: cb_palette[1]}
+
+            # A. Plot split violins
+            sns.violinplot(
+                data=plot_df, 
+                x='Cond', 
+                y='Value',
+                hue="Cond",
+                palette=current_palette, 
+                hue_order=[cond1, cond2],
+                split=False, 
+                inner=None,
+                linewidth=1.5,
+                alpha=0.8,
+                legend=False,
+                cut=0,
+                ax=ax)
+            
+            # B. Plot individual points with controlled jitter + lines between dots
+            rng = np.random.default_rng(42)
+            jitter_strength = 0.12
+
+            # Deterministic jitter for pairing consistency
+            jitter_a = rng.uniform(-jitter_strength, jitter_strength, n_runs)
+            jitter_b = rng.uniform(-jitter_strength, jitter_strength, n_runs)
+            
+            x_a = np.zeros(n_runs) + jitter_a
+            x_b = np.ones(n_runs) + jitter_b
+
+            # Scatter individual constrast estimate points
+            ax.scatter(x_a, roi_df1,
+                    color='black', s=35, alpha=0.8,
+                    edgecolor='black', linewidth=1, zorder=10)
+            ax.scatter(x_b, roi_df2,
+                    color='black', s=35, alpha=0.8,
+                    edgecolor='black', linewidth=1, zorder=10)
+
+            # Draw paired connections
+            for i in range(n_runs):
+                ax.plot([x_a[i], x_b[i]],
+                        [roi_df1[i], roi_df2[i]],
+                        color='gray', linewidth=1, alpha=0.6,
+                        zorder=5, solid_capstyle='round')
+
+            # Spines
+            ax.spines['top'].set_visible(False)
+            ax.spines['right'].set_visible(False)
+            ax.spines['bottom'].set_linewidth(1)
+            ax.spines['left'].set_linewidth(1)
+
+            # Annotate significance
+            p_val = row.P_value_raw
+            is_sig = p_val < 0.05
+
+            # Get y limits
+            y_min, y_max = ax.get_ylim()
+            y_range = y_max - y_min
+            star_y = y_max + (y_range * 0.02)
+            text_y = y_max - (y_range * 0.02)
+            bracket_y = y_max - (y_range * 0.01)
+
+            if is_sig:
+                ax.plot([0, 1], [bracket_y, bracket_y], color='black', linewidth=1.4)
+                ax.plot([0, 0], [bracket_y, bracket_y - (y_range*0.02)], color='black', linewidth=1.4)
+                ax.plot([1, 1], [bracket_y, bracket_y - (y_range*0.02)], color='black', linewidth=1.4)
+                ax.text(0.5, star_y, '***', ha='center', va='bottom', fontsize=plot_conf["fig_fontsize"] - 2, color='black')
+
+                if p_val < 0.001:
+                    label = '***'
+                    p_str = f"{p_val:.3f}"
+                elif p_val < 0.01:
+                    label = '**'
+                    p_str = f"{p_val:.3f}"
+                else:
+                    label = '*'
+                    p_str = f"{p_val:.3f}"
+                color = 'black'
+                font_weight = "bold"
+            else:
+                label = "ns"
+                p_str = ""
+                color = 'gray'
+                font_weight = "normal"
+            
+            # Set labels and title
+            ax.set_title(
+                f'{row.ROI}',
+                y=1.05,
+                fontsize=plot_conf["subplot_fontsize"],
+                fontweight='bold')
+            ax.set_xlabel("")
+            ax.set_ylabel("")
+            
+        # Hide empty subplots
+        for j in range(len(betas), len(axes)):
+            fig.delaxes(axes[j])
+
+        # Titles and axis lables
+        fig.suptitle(f"sub-{subID:02d}, avgVox: {average_voxels}, avgRun: {average_runs}",
+                     fontsize=plot_conf["fig_fontsize"],
+                     fontweight="bold")
+        fig.supxlabel('Timing Deviation [msec]', fontsize=plot_conf["fig_fontsize"], fontweight="bold")
+        fig.supylabel('Beta Estimate [β]', fontsize=plot_conf["fig_fontsize"], fontweight="bold")
+        plt.tight_layout()
+
+        if save:
+            fig_name = f"sub-{subID:02d}_space-{space}_job-{job}_avgVox-{average_voxels}_avgRun-{average_runs}-paired-betas.png"
+            fig_path = out_dir / fig_name
+            plt.savefig(fig_path, dpi=plot_conf["dpi"], bbox_inches="tight")
+
+        if show:
+            plt.show()
+        else:
+            plt.close(fig)
 
 def resample_img(target, reference, output, method, interpolation, transform=""):
     """

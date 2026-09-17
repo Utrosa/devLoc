@@ -9,6 +9,9 @@ Configuration for the following scripts:
 - res_spmT.py
 - analysis_task-timDev.py
 """
+# TODO: The issue is that some config is only relevant for the analysis, some
+# for visualization, and some to all, so it's a bit confusion which vars 
+# impact what when ...
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 01. Activate python environment and import packages
 # Citrix: source activate nipypee
@@ -133,8 +136,8 @@ subID  = 5
 anatID = 2
 space  = "T1w" #MNI or T1w TODO: What is the difference between T1w and T1wFOV?
 task   = "timDev"
-sesIDs = [3] # 2, 3, 4, 5, 6, 7
-sessions = 3 # appears in the filenames 234567 # TODO: readd to plots?
+sesIDs = [2] # 2, 3, 4, 5, 6, 7
+sessions = 234567 # appears in the filenames 234567 # TODO: readd to plots?
 acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC", "BLOCK2", "BLOCK3", "BLOCK4"
 blocks = "1234" # TODO: Potentially can delete ?
 

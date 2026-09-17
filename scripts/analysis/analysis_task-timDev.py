@@ -50,17 +50,11 @@ datasink_T1w = pe.Node(
 )
 
 # Output substitutions: correct all Datasink output folder structures
-substitutions = []
+substitutions = [('_art_detect', '_art_detect')]
 subjFolders = [('_sesID_%s_subID_%s' % (ses, sub),
 				'sub-0%s/ses-0%s' % (sub, ses))
                for ses in c.sesIDs
                for sub in c.subIDs]
-
-# subjFolders = [('_acqID_%s_sesID_%s_subID_%s' % (acq, ses, sub),
-#                 'sub-0%s/ses-0%s/acq-%s' % (sub, ses, acq))
-#                for acq in c.acqIDs
-#                for ses in c.sesIDs
-#                for sub in c.subIDs]
 substitutions.extend(subjFolders)
 datasink_T1w.inputs.substitutions = substitutions
 datasink_T1w.inputs.substitutions += [('beta_', f"beta_space-{c.space}_"),]
@@ -299,8 +293,8 @@ if c.contrast:
 # Save files
 timDev22.connect([
     (estimator, datasink_T1w, [
-        ('spm_mat_file', '1stLevel.@estimator_spm_mat'),
-        ('residual_image', '1stLevel.@residuals'),
+        ('spm_mat_file', '1stLevel.@spm_mat_file'),
+        ('residual_image', '1stLevel.@residual_image'),
         ('beta_images', '1stLevel.@beta_images')]),
     (art_detect, datasink_T1w, [
         ('displacement_files', '1stLevel.@displacement_files'),
@@ -316,9 +310,9 @@ timDev22.connect([
 if c.contrast:
     timDev22.connect([
         (contrastor, datasink_T1w, [
-            ('spm_mat_file', '1stLevel.@contrastor_spm_mat'),
-            ('spmT_images', '1stLevel.@T'),
-            ('con_images', '1stLevel.@con')])])
+            ('spm_mat_file', '1stLevel.@spm_mat_file2'),
+            ('spmT_images', '1stLevel.@spmT_images'),
+            ('con_images', '1stLevel.@con_images')])])
 
 # -------------------------------------------------------------------------------------------------
 # 05. Visualize the Workflow
