@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <17-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <18-09-2026 m.utrosa@bcbl.eu>
 """
 Extract ROI arrays from beta images and plot a single violin 
 plot per ROI, where each beta is:
@@ -193,7 +193,9 @@ for roi_name in roi_names:
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03a. Inferential statistics: Beta distributions compared against zero
 # Compare beta distributions within an ROI (either across runs or voxels).
-# RQ: Is there a sig. difference of the effect of the regressor from 0?
+# The number of statistical tests requiring family-wise error correction:
+# n_rois * n_conditions (beta images)!
+# RQ: Is the regressor effect sig. different from from 0?
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 print("\nPerforming two-sided Wilcoxon rank tests against 0 for each beta.")
 results_one_sample = []
@@ -246,26 +248,26 @@ for roi in roi_names:
 df_results_against0 = pd.DataFrame(results_one_sample)
 print(df_results_against0.head())
 
-# Calculate the number of tests for Bonferroni correction
-# Correction has to be done on the data that is tested multiple times # CHECK
-n_tests = len(conditions)
-print(f"\nThe Bonferroni correction is applied for {len(roi_names)} tests.")
+# Calculate the number of tests (m) for family-wise error
+# Correction has to be done on the data that is tested multiple times
+# m is the number of hypotheses
+n_tests_zero = len(conditions) # * len(roi_names)
+print(f"\nThe Bonferroni correction is applied for {n_tests_zero} tests.")
 
 # Adjust p-values with Bonferroni and reduce the adjusted p-values that exceed 1 to 1
-df_results_against0['p_value_bonferroni'] = df_results_against0['p_value'] * n_tests
+df_results_against0['p_value_bonferroni'] = df_results_against0['p_value'] * n_tests_zero
 df_results_against0['p_value_bonferroni'] = df_results_against0['p_value_bonferroni'].clip(upper=1.0)
 
 # Save dataframe
 df_results_against0.to_csv(
     c.out_2nd / f"sub-{c.subID:02d}_ses-{c.sessions}_block-{c.blocks}_space-{c.space}_job-{c.jobName}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}_test-against0-betas.csv",
-    index=False
-)
+    index=False)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03b. Inferential statistics: Beta pairs per ROI
 # Compare beta distributions within an ROI (either across runs or voxels).
-# RQ: Is there a sig. difference between the effects of regressor pairs?
-# Filter for betas that show a significant effect from zero ? # CHECK
+# RQ: Is there a sig. difference between pairs of regressor effects?
+# CHECK: Filter for betas that show a significant effect from zero ?!
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Reshape the data for plotting
 data_rows = []
@@ -294,16 +296,18 @@ for roi_name, cond_dict in selected_betas.items():
 # Create dataframe
 df = pd.DataFrame(data_rows)
 
-# Rename index column to reflect the condition that was not collapsed.
+# Rename index column to reflect the condition that was NOT collapsed.
 if c.average_runs:
 	df_renamed = df.rename(columns={"Idx": "Voxel"}, inplace=False)
 elif c.average_voxels:
 	df_renamed = df.rename(columns={"Idx": "Run"}, inplace=False)
-print(f"The renamed dataframe:\n{df_renamed.head()}")
 
 # Perform the statistical tests for all pairs of conditions in the ROI
 results_table = []
 condition_pairs = list(combinations(conditions, 2))
+n_tests_paired = len(condition_pairs)
+print(f"The number of regressor pairs: {n_tests_paired}. "
+	  f"\nThe Bonferroni correction is applied for {n_tests_paired} tests.")
 
 # Pivot the data by index (run or voxel) and ROI
 pivot_df = df.pivot_table(index=['ROI', 'Idx'], columns='Condition', values='Value')
@@ -321,8 +325,7 @@ for roi in roi_names:
 		else:
 			valid_pair_data = pair_data
 
-		# Number of tests and observations
-		n_tests = len(condition_pairs)
+		# Number of observations
 		n_obs = len(roi_data)
 
 		# Extract the arrays
@@ -335,7 +338,7 @@ for roi in roi_names:
 			'ROI': roi,
 			'Statistic': stat,
 			'P_value_raw': p_val,
-			'P_value_adj': np.minimum(p_val * n_tests, 1.0), # Bonferroni correction
+			'P_value_adj': np.minimum(p_val * n_tests_paired, 1.0), # Bonferroni correction
 			'N_observations': n_obs,
 			'Comparison': [cond_a, cond_b]
 		})
@@ -358,9 +361,10 @@ df_results_paired.to_csv(
 plot_violins_zero_betas(
 		selected_betas,
 		df_results_against0,
-		c.subID,
+		n_tests_zero,
 		c.plot_rois,
 		c.plotConf,
+		c.subID,
 		c.out_2nd,
 		c.space, # only for the filename
 		c.jobName,
@@ -375,186 +379,69 @@ plot_violins_zero_betas(
 # AIM: see which ROIs (average voxels) distinguish between which betas (paired)
 # RQ: Which regressor pairs do ROIs distinguish significantly?
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-if c.average_voxels:
+# if c.average_voxels: # TODO: to gre samo ce je parov malo ... 
 	
-	plot_violins_betas_paired(
-		selected_betas,
-		df_results_paired,
-		c.subID,
-		c.out_2nd,
-		c.space,   # only for the filename
-		c.jobName, # only for the filename
-		c.plotConf,
-		save=c.save_fig,
-		show=c.show_fig,
-		average_runs=c.average_runs,    # only for the filename
-		average_voxels=c.average_voxels # only for the filename
-	)
-	# # Filter for sig. results
-	# p_value = "P_value_raw"
-	# filtered_df = df_results_paired[df_results_paired[p_value] < 0.05]
-	# filtered_df.reset_index(drop=True, inplace=True)
-
-	# if filtered_df.empty:
-	# 	print("No ROI distinguishes between a regressor pair significantly.")
-	# else:
-
-	# 	# Figure layout
-	# 	fig, axes = plt.subplots(
-	# 		int(np.ceil(len(filtered_df) / plotConf["cols"])),
-	# 		plotConf["cols"],
-	# 		figsize=plotConf["figsize"],
-	# 		sharey=True
-	# 	)
-	# 	axes = axes.flatten()
-
-	# 	# Colors
-	# 	cb_palette = ["#FFC20A", "#0C7BDC"]
-
-	# 	# Iterate through the filtered rois
-	# 	for row in filtered_df.itertuples():
-	# 		ax = axes[row.Index]
-
-	# 		# Get conditions
-	# 		cond1 = row.Comparison[0]
-	# 		cond2 = row.Comparison[1]
-
-	# 		# Extract the sig. regressor pair data
-	# 		roi_df1 = selected_betas[roi][cond1][0]
-	# 		roi_df2 = selected_betas[roi][cond2][0]
-	# 		n_runs  = len(roi_df2)
-
-	# 		# Create plot df
-	# 		plot_df = pd.DataFrame({
-	# 			'ROI': row.ROI,
-	# 			'Cond': [cond1] * n_runs + [cond2] * n_runs,
-	# 			'Value': np.concatenate([roi_df1, roi_df2]),
-	# 			'Run_ID': list(range(1, n_runs + 1)) * 2
-	# 			})
-
-	# 		# Ensure consistency in coloring
-	# 		unique_rois = plot_df['ROI'].unique()
-	# 		current_palette = {cond1: cb_palette[0], cond2: cb_palette[1]}
-
-	# 		# A. Plot split violins
-	# 		sns.violinplot(
-	# 			data=plot_df, 
-	# 			x='Cond', 
-	# 			y='Value',
-	# 			hue="Cond",
-	# 			palette=current_palette, 
-	# 			hue_order=[cond1, cond2],
-	# 			split=False, 
-	# 			inner=None,
-	# 			linewidth=1.5,
-	# 			alpha=0.8,
-	# 			legend=False,
-	# 			cut=0,
-	# 			ax=ax)
-			
-	# 		# B. Plot individual points with controlled jitter + lines between dots
-	# 		rng = np.random.default_rng(42)
-	# 		jitter_strength = 0.12
-
-	# 		# Deterministic jitter for pairing consistency
-	# 		jitter_a = rng.uniform(-jitter_strength, jitter_strength, n_runs)
-	# 		jitter_b = rng.uniform(-jitter_strength, jitter_strength, n_runs)
-			
-	# 		x_a = np.zeros(n_runs) + jitter_a
-	# 		x_b = np.ones(n_runs) + jitter_b
-
-	# 		# Scatter individual constrast estimate points
-	# 		ax.scatter(x_a, roi_df1,
-	# 				color='black', s=35, alpha=0.8,
-	# 				edgecolor='black', linewidth=1, zorder=10)
-	# 		ax.scatter(x_b, roi_df2,
-	# 				color='black', s=35, alpha=0.8,
-	# 				edgecolor='black', linewidth=1, zorder=10)
-
-	# 		# Draw paired connections
-	# 		for i in range(n_runs):
-	# 			ax.plot([x_a[i], x_b[i]],
-	# 					[roi_df1[i], roi_df2[i]],
-	# 					color='gray', linewidth=1, alpha=0.6,
-	# 					zorder=5, solid_capstyle='round')
-
-	# 		# Spines
-	# 		ax.spines['top'].set_visible(False)
-	# 		ax.spines['right'].set_visible(False)
-	# 		ax.spines['bottom'].set_linewidth(1)
-	# 		ax.spines['left'].set_linewidth(1)
-
-	# 		# Annotate significance
-	# 		p_val = row.P_value_raw
-	# 		is_sig = p_val < 0.05
-
-	# 		# Get y limits
-	# 		y_min, y_max = ax.get_ylim()
-	# 		y_range = y_max - y_min
-	# 		star_y = y_max + (y_range * 0.02)
-	# 		text_y = y_max - (y_range * 0.02)
-	# 		bracket_y = y_max - (y_range * 0.01)
-
-	# 		if is_sig:
-	# 			ax.plot([0, 1], [bracket_y, bracket_y], color='black', linewidth=1.4)
-	# 			ax.plot([0, 0], [bracket_y, bracket_y - (y_range*0.02)], color='black', linewidth=1.4)
-	# 			ax.plot([1, 1], [bracket_y, bracket_y - (y_range*0.02)], color='black', linewidth=1.4)
-	# 			ax.text(0.5, star_y, '***', ha='center', va='bottom', fontsize=plotConf["fig_fontsize"] - 2, color='black')
-
-	# 			if p_val < 0.001:
-	# 				label = '***'
-	# 				p_str = f"{p_val:.3f}"
-	# 			elif p_val < 0.01:
-	# 				label = '**'
-	# 				p_str = f"{p_val:.3f}"
-	# 			else:
-	# 				label = '*'
-	# 				p_str = f"{p_val:.3f}"
-	# 			color = 'black'
-	# 			font_weight = "bold"
-	# 		else:
-	# 			label = "ns"
-	# 			p_str = ""
-	# 			color = 'gray'
-	# 			font_weight = "normal"
-			
-	# 		# Set labels and title
-	# 		ax.set_title(
-	# 			f'{row.ROI}',
-	# 			y=1.05,
-	# 			fontsize=plotConf["subplot_fontsize"],
-	# 			fontweight='bold')
-	# 		ax.set_xlabel("")
-	# 		ax.set_ylabel("")
-			
-	# 	# Hide empty subplots
-	# 	for j in range(len(filtered_df), len(axes)):
-	# 		fig.delaxes(axes[j])
-
-	# 	# Titles and axis lables
-	# 	fig.suptitle(f"sub-{c.subID:02d}, avgVox: {c.average_voxels}, avgRun: {c.average_runs}",
-	# 				 fontsize=plotConf["fig_fontsize"],
-	# 				 fontweight="bold")
-	# 	fig.supxlabel('Timing Deviation [msec]', fontsize=plotConf["fig_fontsize"], fontweight="bold")
-	# 	fig.supylabel('Beta Estimate [β]', fontsize=plotConf["fig_fontsize"], fontweight="bold")
-	# 	plt.tight_layout()
-
-	# 	if c.save_fig:
-	# 		fig_name = f"sub-{c.subID:02d}_space-{c.space}_job-{c.jobName}_avgVox-{c.average_voxels}_avgRun-{c.average_runs}-paired-betas.png"
-	# 		fig_path = c.out_2nd / fig_name
-	# 		plt.savefig(fig_path, dpi=plotConf["dpi"], bbox_inches="tight")
-
-	# 	if c.show_fig:
-	# 		plt.show()
-	# 	else:
-	# 		plt.close(fig)
+plot_violins_betas_paired(
+	selected_betas,
+	df_results_paired,
+	0.05,           # Min. threshold to select sig. pairs
+	"P_value_adj", # P_value_raw or P_value_adj
+	n_tests_paired, # TODO: define!
+	c.plotConf,
+	c.subID,
+	c.out_2nd,
+	c.space,   # only for the filename
+	c.jobName, # only for the filename
+	save=c.save_fig,
+	show=c.show_fig,
+	average_runs=c.average_runs,    # only for the filename
+	average_voxels=c.average_voxels # only for the filename
+)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 04c. Figure 2 (version voxels): Plotting the paired results with surface plot
 # AIM: see which ROI voxels distinguish between which betas (paired)
 # TODO: nilearn.plotting.plot_stat_map / plot_surf_stat_map
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# TODO: Heatmap with sig. values only (add by creating a mask)
+# ROI order is incorrect -- hierarchical!
+# Why so many lines?
+# df_plot = df_results_paired.copy()
+# df_plot['Comparison'] = df_plot['Comparison'].apply(lambda x: f"{x[0]} vs {x[1]}")
+
+# # Pivot
+# heatmap_data = df_plot.pivot(
+# 	values="P_value_raw",
+# 	index='ROI', 
+# 	columns='Comparison')
+# desired_order = df_plot['Comparison'].unique()
+# heatmap_data = heatmap_data.reindex(columns=desired_order)
+
+# # Plotting
+# plt.figure(figsize=c.plotConf["figsize"])
+
+# # Create the heatmap
+# sns.heatmap(
+# 	heatmap_data,
+# 	cmap="PRGn", # purple to green good for colorblind!
+# 	annot=False,
+# 	linewidths=0.2, 
+# 	linecolor='gray',
+# 	cbar_kws={'label': 'P-value [raw]'},
+# 	vmin=0,
+# 	vmax=heatmap_data.max().max() if not heatmap_data.empty else 5 # Dynamic max
+# )
+
+# plt.title("Beta Estimate Pairs per ROI", fontsize=c.plotConf["fig_fontsize"], fontweight="bold")
+# plt.xlabel("Beta Estimate Pair", fontsize=c.plotConf["subplot_fontsize"], fontweight="bold")
+# plt.ylabel("ROI", fontsize=c.plotConf["subplot_fontsize"], fontweight="bold")
+
+# # Rotate x-axis labels if too crowded
+# plt.xticks(rotation=45, ha='right')
+
+# plt.tight_layout()
+# plt.show()
+
 # TODO: identify significant clusters
 # TODO: plot significant clusters (size and location on a 3D brain)
 # TODO: add a line around the actual ROI (to see how much of it was not sig.)
-# Issue: how to identify the regressors well -- 22 vs 11 colors?

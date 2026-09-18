@@ -17,6 +17,30 @@ from nilearn.image import resample_to_img
 # Import custom-made functions
 import grabber
 
+def get_subplot_grid(n_subplots, max_cols=None):
+    """
+    Calculate rows and columns for a grid of subplots.
+    Ensures columns <= max_cols (if provided) and rows are minimized.
+    """
+    import math
+
+    if n_subplots <= 0:
+        return 1, 1
+    
+    # Start with the square root as the baseline
+    cols = math.ceil(math.sqrt(n_subplots))
+    
+    # If a max column constraint exists, adjust
+    if max_cols is not None:
+        cols = min(cols, max_cols)
+        
+        # Recalculate rows based on the constrained columns
+        rows = math.ceil(n_subplots / cols)
+    else:
+        rows = math.ceil(n_subplots / cols)
+    
+    return rows, cols
+
 def check_for_missing_bunch_conditions(contrast_conditions, conditions_found, log_bunch, logfilepath):
     """
     The designs script includes functions that read events that occured during the experiment.
@@ -252,7 +276,7 @@ def extract_roi_array(atlas, space, res_path, rois, out_dir, verbose, save, aver
     return res_rois, res_roi_paths, res_affine
 
 def plot_violins(mask_paths, subID, sesID, acqIDs, out_dir, space, scale):
-
+    # TODO: this function may be obsolete ..
     rows = []
     for acq_name, acq_masks in mask_paths.items():
         for ses_name, roi_masks in acq_masks.items():
@@ -302,7 +326,7 @@ def plot_violins(mask_paths, subID, sesID, acqIDs, out_dir, space, scale):
         plt.savefig(fig_path, dpi = 200, bbox_inches = "tight")
         plt.close(fig)
 
-def plot_violins_zero_betas(betas, stats, subID, plot_rois, plot_conf, out_dir, space, job, save, show, average_runs, average_voxels):
+def plot_violins_zero_betas(betas, stats, FWER_m, plot_rois, plot_conf, subID, out_dir, space, job, save, show, average_runs, average_voxels):
     """
     Plots the input data per ROI (subplots) and per condition (x axis categories).
     Depending on betas' structure, individual values in violin plots can be per run or per voxel.
@@ -310,9 +334,10 @@ def plot_violins_zero_betas(betas, stats, subID, plot_rois, plot_conf, out_dir, 
     Parameters:
     - betas: nested dict with a list of beta arrays (single or multiple values) per ROI and condition.
     - stats: a dataframe with inferential results comparing beta distribution against zero.
-    - subID: integer number, identifying the participant.
+    - FWER_m: the number of hypoteses tested // number of tests used in Bonferroni correction.
     - plot_rois: list of ROI labels. These will be the subplots of the figure.
     - plot_conf: dictionary with plot configuration (the number of columns, ...).
+    - subID: integer number, identifying the participant.
     - out_dir: string, specifying the folder name for saving the results as .nii.gz.
     - space: string, coordinate space of the input and output data (native T1w or MNI).
     - job: string, name of the analysis performed.
@@ -434,11 +459,12 @@ def plot_violins_zero_betas(betas, stats, subID, plot_rois, plot_conf, out_dir, 
             
             if p_str:
                 ax.text(j, text_y, p_str, ha='center', va='bottom', 
-                        fontsize=plot_conf["subplot_fontsize"] - 2, color=color)
+                        fontsize=plot_conf["subplot_fontsize"] - 2,
+                        color=color, rotation=90)
 
         # Set figure title and shared axis labels
         fig.suptitle(
-            f"sub-{subID:02d}, avgVox: {average_voxels}, avgRun: {average_runs}",
+            f"sub-{subID:02d}, avgVox: {average_voxels}, avgRun: {average_runs}, Bonferroni (m = {FWER_m})",
             fontsize=plot_conf["fig_fontsize"],
             fontweight="bold")
         fig.supxlabel(
@@ -453,7 +479,7 @@ def plot_violins_zero_betas(betas, stats, subID, plot_rois, plot_conf, out_dir, 
 
     # Optionally save
     if save:
-        fig_name = f"sub-{subID:02d}_space-{space}_job-{job}_avgVox-{average_voxels}_avgRun-{average_runs}_zero-betas.png"
+        fig_name = f"sub-{subID:02d}_space-{space}_job-{job}_avgVox-{average_voxels}_avgRun-{average_runs}_m-{FWER_m}_betas-zero.png"
         fig_path = out_dir / fig_name
         plt.savefig(fig_path, dpi=plot_conf["dpi"], bbox_inches="tight")
 
@@ -463,23 +489,50 @@ def plot_violins_zero_betas(betas, stats, subID, plot_rois, plot_conf, out_dir, 
     else:
         plt.close(fig)
 
-def plot_violins_betas_paired(selected_betas, stats, subID, out_dir, space, job, plot_conf, save, show, average_runs, average_voxels):
+def plot_violins_betas_paired(selected_betas, stats, threshold, p_value, FWER_m, plot_conf, subID, out_dir, space, job, save, show, average_runs, average_voxels):
+    """
+    Plots the input data per ROI (subplots) and per pair of conditions (x axis categories).
+    Depending on betas' structure, individual values in violin plots can be per run or per voxel.
 
+    Parameters:
+    - selected_betas: nested dict with a list of beta arrays (single or multiple values) per ROI and condition.
+    - stats: a dataframe with inferential results comparing beta distribution pairs between each other.
+    - threshold: statistical threshold used to filter betas from stats dataframe.
+    - p_value: the p-values filtered from stats dataframe (raw or adjusted).
+    - FWER_m: the number of hypotheses tested // number of tests used in Bonferroni correction. Only relevant if
+              the p_value is set to FWER-corrected p-values.
+    - plot_conf: dictionary with plot configuration (the number of columns, ...).
+    - subID: integer number, identifying the participant.
+    - out_dir: string, specifying the folder name for saving the results as .nii.gz.
+    - space: string, coordinate space of the input and output data (native T1w or MNI).
+    - job: string, name of the analysis performed.
+    - save: If True, saves the figure to disk.
+    - show: If True, shows the figure from terminal.
+    - average_runs: If True, "beta_array" is list with a single array of n_voxel values.
+    - average_voxels: If True, "beta_array" is a list of n_runs integers.
+
+    Returns:
+    - Figure with violin subplots either displayed or saved, if sig. pair-wise differences exist.
+    """
     # Filter for sig. results
-    p_value = "P_value_raw"
-    betas = stats[stats[p_value] < 0.05]
+    betas = stats[stats[p_value] < threshold]
     betas.reset_index(drop=True, inplace=True)
 
     if betas.empty:
-        print("No ROI distinguishes between a regressor pair significantly.")
+        print("No ROI distinguishes between a regressor pair significantly. "
+              f"\nAssessed using {p_value} and threshold {threshold}.")
     else:
+        
+        # Adapt the number of columns depending on the length of betas
+        subplots_total = len(betas)
+        n_rows, n_cols = get_subplot_grid(subplots_total)
+        
         # Figure layout
         fig, axes = plt.subplots(
-            int(np.ceil(len(betas) / plot_conf["cols"])),
-            plot_conf["cols"],
+            n_rows,
+            n_cols,
             figsize=plot_conf["figsize"],
-            sharey=True
-        )
+            sharey=True)
         axes = axes.flatten()
 
         # Colors
@@ -559,8 +612,8 @@ def plot_violins_betas_paired(selected_betas, stats, subID, out_dir, space, job,
             ax.spines['left'].set_linewidth(1)
 
             # Annotate significance
-            p_val = row.P_value_raw
-            is_sig = p_val < 0.05
+            p_val  = betas.loc[[row.Index], [p_value]]
+            is_sig = p_val < threshold
 
             # Get y limits
             y_min, y_max = ax.get_ylim()
@@ -613,11 +666,11 @@ def plot_violins_betas_paired(selected_betas, stats, subID, out_dir, space, job,
         fig.supylabel('Beta Estimate [β]', fontsize=plot_conf["fig_fontsize"], fontweight="bold")
         plt.tight_layout()
 
+        # Saving & Showing
         if save:
-            fig_name = f"sub-{subID:02d}_space-{space}_job-{job}_avgVox-{average_voxels}_avgRun-{average_runs}-paired-betas.png"
+            fig_name = f"sub-{subID:02d}_space-{space}_job-{job}_avgVox-{average_voxels}_avgRun-{average_runs}_m-{FWER_m}_betas-paired.png"
             fig_path = out_dir / fig_name
             plt.savefig(fig_path, dpi=plot_conf["dpi"], bbox_inches="tight")
-
         if show:
             plt.show()
         else:

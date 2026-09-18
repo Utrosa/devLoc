@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <16-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <17-09-2026 m.utrosa@bcbl.eu>
 """
 Configuration for the following scripts:
 - resample_atlas.py
@@ -29,7 +29,7 @@ denoising    = True  # If True, working in NORDIC Denoised data (preproc)
 verbose      = False
 
 # How do we model deviant events? See deviants.yaml
-timDev_jobName  = "when11"
+timDev_jobName  = "when22"
 freqDev_jobName = "what" # False or "what"
 if freqDev_jobName:
     jobName  = timDev_jobName + freqDev_jobName
@@ -123,9 +123,9 @@ show_fig       = False  # applies to figures with statistical results // blockin
 save_fig       = True   # applies to figures with statistical results
 save_summed    = False  # applies to the contrasts images
 save_averaged  = False  # averaged beta arrays
-average_voxels = True   # CONTRASTS: If True, one value (array) across VOXELS.
+average_voxels = False  # CONTRASTS: If True, one value (array) across VOXELS.
                         # If both are False, the extracted roi array has shape (n_runs, n_voxels)
-average_runs   = False  # If True, collapse runs and return a mean across runs.                  
+average_runs   = True   # If True, collapse runs and return a mean across runs.                  
 remove_empty   = False  # Remove or not empty arrays (e.g.: If we do not average across voxels, 
 					    # do we, when averaging across runs, include voxels that have zero 
 					    # beta values or not?)
@@ -150,7 +150,7 @@ baseDir, workDir, outDir = get_base_dirs(homePath, develop_mode, jobName, denois
 # Define derived paths
 dataPath   = outDir / "1stLevel"
 out_2nd    = outDir / "2ndLevel"
-out_1st    = dataPath / "visualization"
+out_1st    = dataPath / "tmp"
 atlasPath  = homePath / "templates" / "resampled"
 physioPath = homePath / "data_physio" / "raw"
 
@@ -162,7 +162,7 @@ artPath  = homePath / "data_physio" / "artifacts" / f"NORDIC-{denoising}"
 freesurfer_dir = mriPath / "sourcedata" / "freesurfer" / f"sub-{subID:02d}_ses-{anatID:02d}" / "mri"
 
 # Create missing directories
-for p in [outDir, out_2nd, out_1st, workDir]:
+for p in [outDir, out_2nd, workDir]:
     p.mkdir(parents=True, exist_ok=True)
 
 # Filenames and folders of the 1st level analysis output
