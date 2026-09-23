@@ -54,7 +54,6 @@ if c.jobName == "whenwhat":
 	conditions = c.conditions
 else:
 	conditions = c.timDevs
-
 print(f"\nThe selected {len(conditions)} conditions are:\n{conditions}."
 	"\nIMPORTANT: The above conditions must correspond to the order of regressors"
 	" in the SPM design. The order impacts which beta files are loaded.")
@@ -358,28 +357,28 @@ df_results_paired.to_csv(
 )
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 04a. Figure 1: Plotting the against-zero results
+# 04a. Plotting the against-zero results
 # AIM: see which ROIs distinguish between which betas (paired)
 # RQ: Is the regressor effect sig. different from 0?
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-plot_violins_zero_betas(
-		selected_betas,
-		df_results_against0,
-		n_tests_zero,
-		c.plot_rois,
-		c.plotConf,
-		c.subID,
-		c.out_2nd,
-		c.space, # only for the filename
-		c.jobName,
-		save=c.save_fig,
-		show=c.show_fig,
-		average_runs=c.average_runs,    # only for the filename
-		average_voxels=c.average_voxels # only for the filename
-)
+# plot_violins_zero_betas(
+# 		selected_betas,
+# 		df_results_against0,
+# 		n_tests_zero,
+# 		c.plot_rois,
+# 		c.plotConf,
+# 		c.subID,
+# 		c.out_2nd,
+# 		c.space, # only for the filename
+# 		c.jobName,
+# 		save=c.save_fig,
+# 		show=c.show_fig,
+# 		average_runs=c.average_runs,    # only for the filename
+# 		average_voxels=c.average_voxels # only for the filename
+# )
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 04b. Figure 2: Plotting the paired results
+# 04b. Plotting the paired results
 # AIM: see which ROIs (average voxels) distinguish between which betas (paired)
 # RQ: Which regressor pairs do ROIs distinguish significantly?
 # This figure only makes sense for the
@@ -404,48 +403,49 @@ if c.jobName == "whenwhat":
 	)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 04c. Figure 2 (version voxels): Plotting the paired results with surface plot
+# 04c. Plotting the paired results with surface plot
 # AIM: see which ROI voxels distinguish between which betas (paired)
 # TODO: nilearn.plotting.plot_stat_map / plot_surf_stat_map
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # TODO: Heatmap with sig. values only (add by creating a mask)
 # ROI order is incorrect -- hierarchical!
 # Why so many lines?
-# df_plot = df_results_paired.copy()
-# df_plot['Comparison'] = df_plot['Comparison'].apply(lambda x: f"{x[0]} vs {x[1]}")
+# if c.average_runs:
+# 	df_plot = df_results_paired.copy()
+# 	df_plot['Comparison'] = df_plot['Comparison'].apply(lambda x: f"{x[0]} vs {x[1]}")
 
-# # Pivot
-# heatmap_data = df_plot.pivot(
-# 	values="P_value_raw",
-# 	index='ROI', 
-# 	columns='Comparison')
-# desired_order = df_plot['Comparison'].unique()
-# heatmap_data = heatmap_data.reindex(columns=desired_order)
+# 	# Pivot
+# 	heatmap_data = df_plot.pivot(
+# 		values="P_value_raw",
+# 		index='ROI', 
+# 		columns='Comparison')
+# 	desired_order = df_plot['Comparison'].unique()
+# 	heatmap_data = heatmap_data.reindex(columns=desired_order)
 
-# # Plotting
-# plt.figure(figsize=c.plotConf["figsize"])
+# 	# Plotting
+# 	plt.figure(figsize=c.plotConf["figsize"])
 
-# # Create the heatmap
-# sns.heatmap(
-# 	heatmap_data,
-# 	cmap="PRGn", # purple to green good for colorblind!
-# 	annot=False,
-# 	linewidths=0.2, 
-# 	linecolor='gray',
-# 	cbar_kws={'label': 'P-value [raw]'},
-# 	vmin=0,
-# 	vmax=heatmap_data.max().max() if not heatmap_data.empty else 5 # Dynamic max
-# )
+# 	# Create the heatmap
+# 	sns.heatmap(
+# 		heatmap_data,
+# 		cmap="PRGn", # purple to green good for colorblind!
+# 		annot=False,
+# 		linewidths=0.2, 
+# 		linecolor='gray',
+# 		cbar_kws={'label': 'P-value [raw]'},
+# 		vmin=0,
+# 		vmax=heatmap_data.max().max() if not heatmap_data.empty else 5 # Dynamic max
+# 	)
 
-# plt.title("Beta Estimate Pairs per ROI", fontsize=c.plotConf["fig_fontsize"], fontweight="bold")
-# plt.xlabel("Beta Estimate Pair", fontsize=c.plotConf["subplot_fontsize"], fontweight="bold")
-# plt.ylabel("ROI", fontsize=c.plotConf["subplot_fontsize"], fontweight="bold")
+# 	plt.title("Beta Estimate Pairs per ROI", fontsize=c.plotConf["fig_fontsize"], fontweight="bold")
+# 	plt.xlabel("Beta Estimate Pair", fontsize=c.plotConf["subplot_fontsize"], fontweight="bold")
+# 	plt.ylabel("ROI", fontsize=c.plotConf["subplot_fontsize"], fontweight="bold")
 
-# # Rotate x-axis labels if too crowded
-# plt.xticks(rotation=45, ha='right')
+# 	# Rotate x-axis labels if too crowded
+# 	plt.xticks(rotation=45, ha='right')
 
-# plt.tight_layout()
-# plt.show()
+# 	plt.tight_layout()
+# 	plt.show()
 
 # TODO: identify significant clusters
 # TODO: plot significant clusters (size and location on a 3D brain)
