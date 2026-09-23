@@ -50,7 +50,11 @@ roi_names = list(c.rois.keys())
 print(f"The configured ROIS are: {roi_names}.")
 
 # Selection of conditions: the order matters!
-conditions = c.timDevs
+if c.jobName == "whenwhat":
+	conditions = c.conditions
+else:
+	conditions = c.timDevs
+
 print(f"\nThe selected {len(conditions)} conditions are:\n{conditions}."
 	"\nIMPORTANT: The above conditions must correspond to the order of regressors"
 	" in the SPM design. The order impacts which beta files are loaded.")
@@ -305,8 +309,8 @@ elif c.average_voxels:
 # Perform the statistical tests for all pairs of conditions in the ROI
 results_table = []
 condition_pairs = list(combinations(conditions, 2))
-n_tests_paired = len(condition_pairs)
-print(f"The number of regressor pairs: {n_tests_paired}. "
+n_tests_paired = len(condition_pairs) # 
+print(f"\nThe number of regressor pairs: {n_tests_paired}. "
 	  f"\nThe Bonferroni correction is applied for {n_tests_paired} tests.")
 
 # Pivot the data by index (run or voxel) and ROI
@@ -375,28 +379,29 @@ plot_violins_zero_betas(
 )
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 04b. Figure 2 (version runs): Plotting the paired results
+# 04b. Figure 2: Plotting the paired results
 # AIM: see which ROIs (average voxels) distinguish between which betas (paired)
 # RQ: Which regressor pairs do ROIs distinguish significantly?
+# This figure only makes sense for the
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# if c.average_voxels: # TODO: to gre samo ce je parov malo ... 
-	
-plot_violins_betas_paired(
-	selected_betas,
-	df_results_paired,
-	0.05,           # Min. threshold to select sig. pairs
-	"P_value_adj", # P_value_raw or P_value_adj
-	n_tests_paired, # TODO: define!
-	c.plotConf,
-	c.subID,
-	c.out_2nd,
-	c.space,   # only for the filename
-	c.jobName, # only for the filename
-	save=c.save_fig,
-	show=c.show_fig,
-	average_runs=c.average_runs,    # only for the filename
-	average_voxels=c.average_voxels # only for the filename
-)
+if c.jobName == "whenwhat":
+	if c.average_voxels:
+		plot_violins_betas_paired(
+		selected_betas,
+		df_results_paired,
+		0.05,              # Min. threshold to select sig. pairs
+		"P_value_adj",     # P_value_raw or P_value_adj
+		n_tests_paired,    # TODO: define!
+		c.plotConf,
+		c.subID,
+		c.out_2nd,
+		c.space,   # only for the filename
+		c.jobName, # only for the filename
+		save=c.save_fig,
+		show=c.show_fig,
+		average_runs=c.average_runs,    # only for the filename
+		average_voxels=c.average_voxels # only for the filename
+	)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 04c. Figure 2 (version voxels): Plotting the paired results with surface plot

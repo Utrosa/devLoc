@@ -21,8 +21,8 @@ from utils import resample_img, compare_img
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 01. Beta, contrast, and spmT images: from BOLDREF FOV to T1w FOV ------------
 # The anatomical reference is the same for all analysis outputs.
-T1w = c.anatPath / f"sub-{c.subID:02d}_ses-{c.anatID:02d}_desc-preproc_T1w.nii.gz"
-MNI = c.homePath / "templates" / "tpl-MNI152NLin2009cAsym_res-01_desc-brain_T1w.nii.gz"
+# MNI = c.homePath / "templates" / "tpl-MNI152NLin2009cAsym_res-01_desc-brain_T1w.nii.gz"
+T1w_img = c.anatPath / f"sub-{c.subID:02d}_ses-{c.anatID:02d}_desc-preproc_T1w.nii.gz"
 
 # Collect the files to resample and specify their resampled filename
 for sesID in c.sesIDs:
@@ -66,8 +66,8 @@ for sesID in c.sesIDs:
                 # Check that the resampled file does not already exist 
                 if not beta_new_path.exists():      
                     if c.space == "T1w":
-                        resample_img(beta, T1w, beta_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
-                        compare_img(beta, T1w, beta_new_path, verbose=c.verbose)
+                        resample_img(beta, T1w_img, beta_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
+                        compare_img(beta, T1w_img, beta_new_path, verbose=c.verbose)
                     else:
                         raise ValueError(f"What is the desired coordinate space? Not T1w nor MNI?")
             # Contrasts
@@ -82,8 +82,8 @@ for sesID in c.sesIDs:
                 # Check that the resampled file does not already exist 
                 if not con_new_path.exists():
                     if c.space == "T1w":     
-                        resample_img(con, T1w, con_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
-                        compare_img(con, T1w, con_new_path, verbose=c.verbose)
+                        resample_img(con, T1w_img, con_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
+                        compare_img(con, T1w_img, con_new_path, verbose=c.verbose)
                     else:
                         raise ValueError(f"What is the desired coordinate space? Not T1w nor MNI?")
 
@@ -99,7 +99,7 @@ for sesID in c.sesIDs:
                 # Check that the resampled file does not already exist 
                 if not spmt_new_path.exists():
                     if c.space == "T1w":
-                        resample_img(spmt, T1w, spmt_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
-                        compare_img(spmt, T1w, spmt_new_path, verbose=c.verbose)
+                        resample_img(spmt, T1w_img, spmt_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
+                        compare_img(spmt, T1w_img, spmt_new_path, verbose=c.verbose)
                     else:
                         raise ValueError(f"What is the desired coordinate space? Not T1w nor MNI?")

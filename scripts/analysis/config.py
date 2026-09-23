@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <17-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <22-09-2026 m.utrosa@bcbl.eu>
 """
 Configuration for the following scripts:
 - resample_atlas.py
@@ -29,7 +29,7 @@ denoising    = True  # If True, working in NORDIC Denoised data (preproc)
 verbose      = False
 
 # How do we model deviant events? See deviants.yaml
-timDev_jobName  = "when22"
+timDev_jobName  = "when"
 freqDev_jobName = "what" # False or "what"
 if freqDev_jobName:
     jobName  = timDev_jobName + freqDev_jobName
@@ -108,10 +108,10 @@ if artDetect:
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03b. Specify 1st level analysis options
-concat    = True  # If True, treats runs (acq / BLOCKS) as one continuous series # TODO: how to concat acquisitions?!?!
+concat    = True  # If True, treats runs (acq / BLOCKS) as one continuous series
 hrf_dervs = [0, 0]
 volterra  = False
-smoothing = None  # Set the Gaussian filter width in mm 2.5; defaults to None
+smoothing = 2.5  # Set the Gaussian filter width in mm 2.5; defaults to None
 
 # Contrast specification
 contrast  = True
@@ -123,9 +123,9 @@ show_fig       = False  # applies to figures with statistical results // blockin
 save_fig       = True   # applies to figures with statistical results
 save_summed    = False  # applies to the contrasts images
 save_averaged  = False  # averaged beta arrays
-average_voxels = False  # CONTRASTS: If True, one value (array) across VOXELS.
+average_voxels = True   # CONTRASTS: If True, one value (array) across VOXELS.
                         # If both are False, the extracted roi array has shape (n_runs, n_voxels)
-average_runs   = True   # If True, collapse runs and return a mean across runs.                  
+average_runs   = False  # If True, collapse runs and return a mean across runs.                  
 remove_empty   = False  # Remove or not empty arrays (e.g.: If we do not average across voxels, 
 					    # do we, when averaging across runs, include voxels that have zero 
 					    # beta values or not?)
@@ -136,8 +136,8 @@ subID  = 5
 anatID = 2
 space  = "T1w" #MNI or T1w TODO: What is the difference between T1w and T1wFOV?
 task   = "timDev"
-sesIDs = [2] # 2, 3, 4, 5, 6, 7
-sessions = 234567 # appears in the filenames 234567 # TODO: readd to plots?
+sesIDs = [2, 3, 4, 5, 6, 7] # 2, 3, 4, 5, 6, 7
+sessions = 234567 # appears in the filenames 234567 # TODO: for filenames in plots?
 acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC", "BLOCK2", "BLOCK3", "BLOCK4"
 blocks = "1234" # TODO: Potentially can delete ?
 
@@ -201,7 +201,8 @@ plotConf = {
     "figsize"          : (12, 15),
     "dpi"              : 300,
     "fig_fontsize"     : 14,
-    "subplot_fontsize" : 11
+    "subplot_fontsize" : 10,
+    "rotation"         : 0
 }
 plot_rois = ["A1-L", "A1-R", "MGB-L", "MGB-R", "IC-L", "IC-R"] # hierarchical order!
 

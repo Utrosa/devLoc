@@ -399,7 +399,9 @@ def plot_violins_zero_betas(betas, stats, FWER_m, plot_rois, plot_conf, subID, o
             inner="point", # show individual observations: point
             legend=False,
             cut=0, # limit the violin within the data range
-            ax=ax
+            ax=ax,
+            density_norm = "count" # violin width displays the number
+                                   # of observations
         )
 
         # Spines
@@ -419,11 +421,14 @@ def plot_violins_zero_betas(betas, stats, FWER_m, plot_rois, plot_conf, subID, o
         ax.set_title(f"{roi}", y=1.05, fontsize=plot_conf["subplot_fontsize"], fontweight="bold")
         ax.set_xlabel("", fontsize=plot_conf["subplot_fontsize"])
         ax.set_ylabel("", fontsize=plot_conf["subplot_fontsize"])
+        ax.tick_params(axis='x', labelrotation=plot_conf["rotation"])
 
         # Add significance annotation
-        star_y = y_max + (y_range * 0.02) 
-        text_y = y_max - (y_range * 0.02)
-
+        star_y = y_max + (y_range * 0.02)
+        if plot_conf["rotation"] > 0:
+            text_y = y_max - (y_range * 0.10)
+        else:
+            text_y = y_max - (y_range * 0.01)
         for j, cond in enumerate(conds):
             
             # Filter stats by roi and regressor
@@ -460,7 +465,7 @@ def plot_violins_zero_betas(betas, stats, FWER_m, plot_rois, plot_conf, subID, o
             if p_str:
                 ax.text(j, text_y, p_str, ha='center', va='bottom', 
                         fontsize=plot_conf["subplot_fontsize"] - 2,
-                        color=color, rotation=90)
+                        color=color, rotation=plot_conf["rotation"])
 
         # Set figure title and shared axis labels
         fig.suptitle(
@@ -524,13 +529,12 @@ def plot_violins_betas_paired(selected_betas, stats, threshold, p_value, FWER_m,
     else:
         
         # Adapt the number of columns depending on the length of betas
-        subplots_total = len(betas)
-        n_rows, n_cols = get_subplot_grid(subplots_total)
-        
+        n_rows = int(np.ceil(len(betas) / plot_conf["cols"]))
+
         # Figure layout
         fig, axes = plt.subplots(
             n_rows,
-            n_cols,
+            plot_conf["cols"],
             figsize=plot_conf["figsize"],
             sharey=True)
         axes = axes.flatten()
@@ -577,7 +581,8 @@ def plot_violins_betas_paired(selected_betas, stats, threshold, p_value, FWER_m,
                 alpha=0.8,
                 legend=False,
                 cut=0,
-                ax=ax)
+                ax=ax,
+                density_norm ="count")
             
             # B. Plot individual points with controlled jitter + lines between dots
             rng = np.random.default_rng(42)
@@ -592,18 +597,18 @@ def plot_violins_betas_paired(selected_betas, stats, threshold, p_value, FWER_m,
 
             # Scatter individual constrast estimate points
             ax.scatter(x_a, roi_df1,
-                    color='black', s=35, alpha=0.8,
+                    color='black', s=3, alpha=0.6,
                     edgecolor='black', linewidth=1, zorder=10)
             ax.scatter(x_b, roi_df2,
-                    color='black', s=35, alpha=0.8,
+                    color='black', s=3, alpha=0.6,
                     edgecolor='black', linewidth=1, zorder=10)
 
             # Draw paired connections
             for i in range(n_runs):
                 ax.plot([x_a[i], x_b[i]],
                         [roi_df1[i], roi_df2[i]],
-                        color='gray', linewidth=1, alpha=0.6,
-                        zorder=5, solid_capstyle='round')
+                        color='gray', linewidth=0.8, alpha=0.8,
+                        zorder=35, solid_capstyle='round')
 
             # Spines
             ax.spines['top'].set_visible(False)
@@ -616,27 +621,30 @@ def plot_violins_betas_paired(selected_betas, stats, threshold, p_value, FWER_m,
             is_sig = p_val < threshold
 
             # Get y limits
-            y_min, y_max = ax.get_ylim()
+            y_min, y_max = ax.get_ylim()   
             y_range = y_max - y_min
             star_y = y_max + (y_range * 0.02)
-            text_y = y_max - (y_range * 0.02)
-            bracket_y = y_max - (y_range * 0.01)
+            if plot_conf["rotation"] > 0:
+                text_y = y_max + (y_range * 0.10)
+            else:
+                text_y = y_max + (y_range * 0.01)
 
-            if is_sig:
-                ax.plot([0, 1], [bracket_y, bracket_y], color='black', linewidth=1.4)
-                ax.plot([0, 0], [bracket_y, bracket_y - (y_range*0.02)], color='black', linewidth=1.4)
-                ax.plot([1, 1], [bracket_y, bracket_y - (y_range*0.02)], color='black', linewidth=1.4)
-                ax.text(0.5, star_y, '***', ha='center', va='bottom', fontsize=plot_conf["fig_fontsize"] - 2, color='black')
-
-                if p_val < 0.001:
+            isSig = is_sig.iloc[0,0]
+            if isSig:
+                ax.plot([0, 1], [y_max, y_max], color='black', linewidth=1.4)
+                ax.plot([0, 0], [y_max + (y_range * 0.005), y_max - (y_range * 0.005)], color='black', linewidth=1.4)
+                ax.plot([1, 1], [y_max + (y_range * 0.005), y_max - (y_range * 0.005)], color='black', linewidth=1.4)
+                
+                pVal = p_val.iloc[0,0]
+                if pVal < 0.001:
                     label = '***'
-                    p_str = f"{p_val:.3f}"
-                elif p_val < 0.01:
+                    p_str = f"{pVal:.3f}"
+                elif pVal < 0.01:
                     label = '**'
-                    p_str = f"{p_val:.3f}"
+                    p_str = f"{pVal:.3f}"
                 else:
                     label = '*'
-                    p_str = f"{p_val:.3f}"
+                    p_str = f"{pVal:.3f}"
                 color = 'black'
                 font_weight = "bold"
             else:
@@ -644,6 +652,15 @@ def plot_violins_betas_paired(selected_betas, stats, threshold, p_value, FWER_m,
                 p_str = ""
                 color = 'gray'
                 font_weight = "normal"
+            
+            # Place annotation centered over the specific violin
+            ax.text(0.5, star_y, label, ha='center', va='bottom', 
+                    fontsize=plot_conf["subplot_fontsize"] - 2, fontweight=font_weight, color=color)
+            
+            if p_str:
+                ax.text(0.5, text_y, p_str, ha='center', va='bottom', 
+                        fontsize=plot_conf["subplot_fontsize"] - 2,
+                        color=color, rotation=plot_conf["rotation"])
             
             # Set labels and title
             ax.set_title(
@@ -653,6 +670,7 @@ def plot_violins_betas_paired(selected_betas, stats, threshold, p_value, FWER_m,
                 fontweight='bold')
             ax.set_xlabel("")
             ax.set_ylabel("")
+            ax.tick_params(axis='x', labelrotation=plot_conf["rotation"])
             
         # Hide empty subplots
         for j in range(len(betas), len(axes)):
