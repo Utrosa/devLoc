@@ -29,7 +29,7 @@ denoising    = True  # If True, working in NORDIC Denoised data (preproc)
 verbose      = False
 
 # How do we model deviant events? See deviants.yaml
-timDev_jobName  = "when22"
+timDev_jobName  = "whenPosNeg"
 freqDev_jobName = "what" # False or "what"
 if freqDev_jobName:
     jobName  = timDev_jobName + freqDev_jobName
@@ -102,16 +102,18 @@ tapas_cols = [f"RETROICOR_Cardiac_{i+1}" for i in range(6)] + \
 # Rapidart nipype node for motion artifact detection
 artDetect = True
 if artDetect:
-    zintensity_thresh = 3   # detect images that deviate from the mean
-    rot_thresh        = 0.3 # in radians 0.2 - 0.5
-    trans_thresh      = 0.3 # in mm
+    zintensity_thresh = 15   # detect images that deviate from the mean or previous volume
+                             # Default is 3; TODO: lower to reasonable level or remove 1st volume
+    rot_thresh        = 0.4  # in radians! 0.2 - 0.5 mm -> used for FD
+                             # assuming 50 mm from the center of the head (Power, 2012)
+    trans_thresh      = 0.03 # in mm diff -> used for FD
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03b. Specify 1st level analysis options
 concat    = True  # If True, treats runs (acq / BLOCKS) as one continuous series
 hrf_dervs = [0, 0]
 volterra  = False
-smoothing = 2.5  # Set the Gaussian filter width in mm 2.5; defaults to None
+smoothing = None  # Set the Gaussian filter width in mm 2.5; defaults to None
 
 # Contrast specification
 contrast  = True
@@ -123,9 +125,9 @@ show_fig       = False  # applies to figures with statistical results // blockin
 save_fig       = True   # applies to figures with statistical results
 save_summed    = False  # applies to the contrasts images
 save_averaged  = False  # averaged beta arrays
-average_voxels = False   # CONTRASTS: If True, one value (array) across VOXELS.
+average_voxels = True   # CONTRASTS: If True, one value (array) across VOXELS.
                         # If both are False, the extracted roi array has shape (n_runs, n_voxels)
-average_runs   = True  # If True, collapse runs and return a mean across runs.                  
+average_runs   = False  # If True, collapse runs and return a mean across runs.                  
 remove_empty   = False  # Remove or not empty arrays (e.g.: If we do not average across voxels, 
 					    # do we, when averaging across runs, include voxels that have zero 
 					    # beta values or not?)
@@ -136,8 +138,8 @@ subID  = 5
 anatID = 2
 space  = "T1w" #MNI or T1w TODO: What is the difference between T1w and T1wFOV?
 task   = "timDev"
-sesIDs = [2, 3, 4, 5, 6, 7] # 2, 3, 4, 5, 6, 7
-sessions = 234567 # appears in the filenames 234567 # TODO: for filenames in plots?
+sesIDs = [2] # 2, 3, 4, 5, 6, 7
+sessions = 2 # appears in the filenames 234567 # TODO: for filenames in plots?
 acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC", "BLOCK2", "BLOCK3", "BLOCK4"
 blocks = "1234" # TODO: Potentially can delete ?
 

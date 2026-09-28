@@ -361,21 +361,21 @@ df_results_paired.to_csv(
 # AIM: see which ROIs distinguish between which betas (paired)
 # RQ: Is the regressor effect sig. different from 0?
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# plot_violins_zero_betas(
-# 		selected_betas,
-# 		df_results_against0,
-# 		n_tests_zero,
-# 		c.plot_rois,
-# 		c.plotConf,
-# 		c.subID,
-# 		c.out_2nd,
-# 		c.space, # only for the filename
-# 		c.jobName,
-# 		save=c.save_fig,
-# 		show=c.show_fig,
-# 		average_runs=c.average_runs,    # only for the filename
-# 		average_voxels=c.average_voxels # only for the filename
-# )
+plot_violins_zero_betas(
+		selected_betas,
+		df_results_against0,
+		n_tests_zero,
+		c.plot_rois,
+		c.plotConf,
+		c.subID,
+		c.out_2nd,
+		c.space, # only for the filename
+		c.jobName,
+		save=c.save_fig,
+		show=c.show_fig,
+		average_runs=c.average_runs,    # only for the filename
+		average_voxels=c.average_voxels # only for the filename
+)
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 04b. Plotting the paired results

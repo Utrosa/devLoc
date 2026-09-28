@@ -20,7 +20,7 @@ timDev:
   when11 : {
     "conditions" : ["4", "8", "13", "19", "27", "36", "48", "63", "80", "100", "125"],
     "weights" : [
-      0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909], # 1/11 = 0.0909091
+      0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909, 0.0909], # 1/10 = 0.0909091
       "binary"   : False, # devs are treated differently
       "absolute" : True,  # direction irrelevant (early is assumed equal to late)
       "groups"   : False  # no assumption about groups (taking values from exp. design)

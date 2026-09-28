@@ -96,12 +96,12 @@ def check_for_missing_bunch_conditions(contrast_conditions, conditions_found, lo
 
     return timfreq_bunch_corrected
 
-def find_dev_group(delta_str, groups):
+def find_dev_group(target_val, groups):
     """
-    Determines the group name for a given delta string based on the groups dictionary.
+    Determines the group name for a given delta based on the groups dictionary.
     
     Args:
-        delta_str (str): The delta value, potentially with a prefix (e.g., "p10", "n5", or "10").
+        target_val (int): The delta value without a prefix (e.g.: -4, 4).
         groups (dict): A dictionary where keys are group names and values are lists of integers.
         
     Returns:
