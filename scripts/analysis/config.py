@@ -29,7 +29,7 @@ denoising    = True  # If True, working in NORDIC Denoised data (preproc)
 verbose      = False
 
 # How do we model deviant events? See deviants.yaml
-timDev_jobName  = "whenPosNeg"
+timDev_jobName  = "when11"
 freqDev_jobName = "what" # False or "what"
 if freqDev_jobName:
     jobName  = timDev_jobName + freqDev_jobName
@@ -117,7 +117,19 @@ smoothing = None  # Set the Gaussian filter width in mm 2.5; defaults to None
 
 # Contrast specification
 contrast  = True
-contrasts = [(jobName, 'T', conditions, contrast_weights)]
+if jobName == "whenwhat":
+    contrasts = [(jobName, 'T', conditions, contrast_weights)] # would result in one contrast image
+else:
+    contrasts = []
+    for cond_name in conditions:
+        
+        weights_zero = [1] + [0] * int(len(conditions) - 1)
+        weights_prop = [1] + [1 / int(len(conditions) - 1)] * int(len(conditions) - 1)
+
+        # Append the contrast tuple
+        contrasts.append((cond_name, 'T', conditions, weights_zero))
+        contrasts.append((cond_name, 'T', conditions, weights_prop))
+        print(f"\n{contrasts}")
 
 # 03c. Specify data handling and plotting preferences for 1st level results
 save_roi       = False  # applies to extracted ROI arrays
