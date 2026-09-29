@@ -56,7 +56,7 @@ def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses=Non
 
 	    # Check for missing values
 	    if count == 0:
-	        msg = f"No {name} found for sub-{sub:02d}, ses-{ses:02d}, {extra_params}."
+	        msg = f"\nNo {name} found for sub-{sub:02d}, ses-{ses:02d}, {extra_params}."
 	        if warning_only:
 	            warnings.warn(msg)
 	        else:
@@ -64,7 +64,7 @@ def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses=Non
 		
 		# Check which files are found as a group if more than one file found   
 	    elif count > 1:
-	        msg = f"Found more than one {name}:\n{obj}.\nPlease verify your file-grabbing inputs."
+	        msg = f"\nFound more than one {name}:\n{obj}.\nPlease verify your file-grabbing inputs."
 	        warnings.warn(msg)
 	
 	# Initialize paths
@@ -131,18 +131,18 @@ def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses=Non
 	# Transform files
 	if len(func_trans_object) == 0:
 		raise ValueError(
-			f"No orig_to_boldref or boldref_to_T1w transform files found for sub-{subID:02d}, ses-{sesID:02d}{extra_str}"
+			f"\nNo orig_to_boldref or boldref_to_T1w transform files found for sub-{subID:02d}, ses-{sesID:02d}{extra_str}"
 		)
 
 	# Warnings for multiple files
 	if len(T1w_object) > 1:
-		warnings.warn(f"Multiple anatomical files found: {[Path(to).name for to in T1w_object]}")
+		warnings.warn(f"\nMultiple anatomical files found: {[Path(to).name for to in T1w_object]}")
 
 	if len(func_trans_object) > 1:
 		names_orig = [Path(otbo).name for otbo in func_trans_object]
 		names_bold = [Path(btto).name for btto in func_trans_object]
 		warnings.warn(
-			f"Multiple transformation files found: \n"
+			f"\nMultiple transformation files found: \n"
 			f" * orig_to_boldref: {names_orig} \n\n"
 			f" * boldref_to_T1w: {names_bold}"
 		)
@@ -192,7 +192,7 @@ def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses=Non
 	TRs = [bo.get_metadata()['RepetitionTime'] for bo in bold_object]
 
 	# Select a TR
-	warnings.warn("Assuming all to-be-concatenated functional scans have the same TR.")
+	warnings.warn("\nAssuming all to-be-concatenated functional scans have the same TR.")
 	TR = TRs[0]
 
 	return log_paths, boldref_paths, bold_paths, mask_paths, conf_paths, reg_paths, movpar_paths, \

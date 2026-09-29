@@ -743,7 +743,7 @@ def resample_img(target, reference, output, method, interpolation, transform="")
             "-n", interpolation,
             "-o", str(output_path)
         ]
-
+        print(cmd)
         try:
             subprocess.run(cmd, check=True, capture_output=True, text=True)
             return True
