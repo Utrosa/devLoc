@@ -1,11 +1,11 @@
 #! /usr/bin/env python
-# Time-stamp: <2026-15-06 m.utrosa@bcbl.eu>
+# Time-stamp: <29-09-2026 m.utrosa@bcbl.eu>
 '''
 Grabs objects needed for other scripts.
 Grabs functional and anatomical files in the specified space.
 '''
 
-def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses=None, acq=None, run=None):
+def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses, acq, run):
 	"""
 	Locate functional and anatomical objects and returns a tuple of filepaths and TR based on the 
 	specified subject and session. Optionally, you can specify the acquisition and run.
@@ -47,7 +47,7 @@ def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses=Non
 	        obj (list): The list of file objects to validate.
 	        name (str): A descriptive name for the file type.
 	        sub (int): The subject identifier.
-	        ses (str): The session identifier.
+	        ses (int): The session identifier.
 	        extra_params (str): Additional context parameters to append to the message.
 	        warning_only (bool): If True, issue a warning instead of raising an error.
 	    """
@@ -64,7 +64,7 @@ def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses=Non
 		
 		# Check which files are found as a group if more than one file found   
 	    elif count > 1:
-	        msg = f"\nFound more than one {name}:\n{obj}.\nPlease verify your file-grabbing inputs."
+	        msg = f"\nFound more than one {name}:\n{len(obj)}.\nPlease verify your file-grabbing inputs."
 	        warnings.warn(msg)
 	
 	# Initialize paths
@@ -79,22 +79,105 @@ def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses=Non
 	artLayout = bids.layout.BIDSLayout(artPath, validate=False)
 
 	# Determine if session, run and functional acquisition identifiers are used
-	sesID = ses if bool(ses) else None
+	sesID = ses if bool(ses) else False
 	runID = run	if bool(run) else None
 	acqID = acq if bool(acq) else None
 	
 	# -------------- 02 Configuration -------------- 
-	log_conf = grabber.define_grabconf(subID, sesID, "events", "tsv", task=task, acquisition=acqID, run=runID)
-	boldref_conf = grabber.define_grabconf(subID, sesID, "boldref", "nii.gz", task=task, acquisition=acqID, run=runID, space=space)
-	bold_conf = grabber.define_grabconf(subID, sesID, "bold", "nii.gz", task=task, acquisition=acqID, run=runID, space=space)
-	mask_conf = grabber.define_grabconf(subID, sesID, "mask", "nii.gz", task=task, acquisition=acqID, run=runID, space=space)
-	conf_conf = grabber.define_grabconf(subID, sesID, "confounds", "txt", task=task, acquisition=acqID, run=runID)	
-	reg_conf = grabber.define_grabconf(subID, sesID, "regressors", "tsv", task=task, acquisition=acqID, run=runID)
-	movpar_conf = grabber.define_grabconf(subID, sesID, "movpar", "txt", task=task, acquisition=acqID, run=runID)
-	out_conf = grabber.define_grabconf(subID, sesID, "outliers",  "txt", task=task, acquisition=acqID, run=runID)
-	T1w_conf = grabber.define_grabconf(subID, anatID, "T1w",  "nii.gz")
-	h5_trans_conf = grabber.define_grabconf(subID, anatID, "xfm",  "h5")
-	txt_trans_conf = grabber.define_grabconf(subID, anatID, "xfm",  "txt", task=task, acquisition=acqID)
+	log_conf = grabber.define_grabconf(
+		subject = subID,
+		session = sesID,
+		suffix = "events", 
+		extension = "tsv",
+		task = task,
+		acquisition = acqID,
+		run = runID)
+
+	boldref_conf = grabber.define_grabconf(
+		subject = subID,
+		session = sesID,
+		suffix = "boldref", 
+		extension = "nii.gz",  
+		task = task,
+		acquisition = acqID,
+		run = runID,
+		space = space)
+
+	bold_conf = grabber.define_grabconf(
+		subject = subID,
+		session = sesID,
+		suffix = "bold", 
+		extension = "nii.gz",
+		task = task,
+		acquisition = acqID,
+		run = runID,
+		space = space)
+
+	mask_conf = grabber.define_grabconf(
+		subject = subID,
+		session = sesID,
+		suffix = "mask", 
+		extension = "nii.gz",
+		task = task,
+		acquisition = acqID,
+		run = runID,
+		space = space)
+
+	conf_conf = grabber.define_grabconf(
+		subject = subID,
+		session = sesID,
+		suffix = "confounds", 
+		extension = "txt",
+		task = task,
+		acquisition = acqID,
+		run = runID)
+
+	reg_conf = grabber.define_grabconf(
+		subject = subID,
+		session = sesID,
+		suffix = "regressors", 
+		extension = "tsv",
+		task = task,
+		acquisition = acqID,
+		run = runID)
+
+	movpar_conf = grabber.define_grabconf(
+		subject = subID,
+		session = sesID,
+		suffix = "movpar", 
+		extension = "txt",
+		task = task,
+		acquisition = acqID,
+		run = runID)
+	
+	out_conf = grabber.define_grabconf(
+		subject = subID,
+		session = sesID,
+		suffix = "outliers",  
+		extension = "txt", 
+		task = task,
+		acquisition = acqID,
+		run = runID)
+	
+	T1w_conf = grabber.define_grabconf(
+		subject = subID,
+		session = anatID,
+		suffix = "T1w", 
+		extension = "nii.gz")
+	
+	h5_trans_conf = grabber.define_grabconf(
+		subject = subID,
+		session = sesID,
+		suffix = "xfm", 
+		extension = "h5")
+	
+	txt_trans_conf = grabber.define_grabconf(
+		subject = subID,
+		session = sesID,
+		suffix = "xfm", 
+		extension = "txt",
+		task = task,
+		acquisition = acqID)
 
 	# -------------- 03 Grabbing files --------------
 	log_object = grabber.grab_BIDS_object(logpath, logLayout, log_conf)
@@ -117,16 +200,16 @@ def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses=Non
 	extra_str = f"{task_str}, {space_str}, {acq_str}, {run_str}"
 
 	# Missing file checks
-	check_object(log_object, "log file", subID, sesID, extra_str, warning_only=True)
-	check_object(boldref_object, "boldref file", subID, sesID, extra_str, warning_only=True)
-	check_object(bold_object, "bold file", subID, sesID, extra_str, warning_only=True)
-	check_object(mask_object, "mask file", subID, sesID, extra_str, warning_only=True)
-	check_object(T1w_object, "T1w file", subID, anatID)
-	check_object(conf_object, "confounds file", subID, sesID, extra_str)
-	check_object(reg_object, "TAPAS regressors file", subID, sesID, f"{acq_str}, {run_str}", warning_only=True)
-	check_object(movpar_object, "movement parameters file", subID, sesID, extra_str)
-	check_object(out_object, "outliers file", subID, sesID, extra_str)
-	check_object(T1w_to_MNI_object, "T1w to MNI transform file", subID, sesID, extra_str)
+	# check_object(log_object, "log file", subID, sesID, extra_str, warning_only=True)
+	# check_object(boldref_object, "boldref file", subID, sesID, extra_str, warning_only=True)
+	# check_object(bold_object, "bold file", subID, sesID, extra_str, warning_only=True)
+	# check_object(mask_object, "mask file", subID, sesID, extra_str, warning_only=True)
+	# check_object(T1w_object, "T1w file", subID, anatID)
+	# check_object(conf_object, "confounds file", subID, sesID, extra_str)
+	# check_object(reg_object, "TAPAS regressors file", subID, sesID, f"{acq_str}, {run_str}", warning_only=True)
+	# check_object(movpar_object, "movement parameters file", subID, sesID, extra_str)
+	# check_object(out_object, "outliers file", subID, sesID, extra_str)
+	# check_object(T1w_to_MNI_object, "T1w to MNI transform file", subID, sesID, extra_str)
 
 	# Transform files
 	if len(func_trans_object) == 0:
@@ -136,16 +219,15 @@ def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses=Non
 
 	# Warnings for multiple files
 	if len(T1w_object) > 1:
-		warnings.warn(f"\nMultiple anatomical files found: {[Path(to).name for to in T1w_object]}")
+		warnings.warn(f"\nMultiple anatomical files found: {len([Path(to).name for to in T1w_object])}")
 
 	if len(func_trans_object) > 1:
 		names_orig = [Path(otbo).name for otbo in func_trans_object]
 		names_bold = [Path(btto).name for btto in func_trans_object]
 		warnings.warn(
 			f"\nMultiple transformation files found: \n"
-			f" * orig_to_boldref: {names_orig} \n\n"
-			f" * boldref_to_T1w: {names_bold}"
-		)
+			f" * orig_to_boldref: {len(names_orig)} \n\n"
+			f" * boldref_to_T1w: {len(names_bold)}")
 
 	# -------------- 05 Grabing filepaths and Updating --------------
 	log_paths     = [lo.path for lo in log_object]
@@ -160,8 +242,7 @@ def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses=Non
 	T1w_path = T1w_object[0].path
 	warnings.warn(
 		f"\nThe selected space for the analysis is: {space}. "
-		f"\nThe anatomical file selected is: {Path(T1w_object[0]).name}."
-	)
+		f"\nThe anatomical file selected is: {Path(T1w_object[0]).name}.")
 
 	# Regressors tsv file only exists when including BIOPAC regressors
 	if len(reg_object):

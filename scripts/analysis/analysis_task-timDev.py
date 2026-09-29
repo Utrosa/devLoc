@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <16-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <29-09-2026 m.utrosa@bcbl.eu>
 '''
 fMRI: GLM model fitting with fixed effects
 
@@ -27,18 +27,33 @@ from utils import add_nuisance
 # -------------------------------------------------------------------------------------------------
 # 01. Specify helper nodes
 # -------------------------------------------------------------------------------------------------
-# Infosource: set up a function-free node to iterate over subjects and exp. sessions.
-# Acquistions are concatenated
-# The Identity Interface allows to create Nodes that only work with strings (parameters)!
-infosource = pe.Node(
-    IdentityInterface(fields = ['subID', 'sesID']),
-	name = "infosource"
-)
-infosource.iterables = [
-    ('subID', c.subIDs),
-	('sesID', c.sesIDs)
-	# ('acqID', c.acqIDs)
-]
+# Infosource: set up a function-free node to iterate over subjects/sessions/runs
+# The IdentityInterface allows to create Nodes that only work with strings!
+if c.concat[0]:
+    
+    # Concat functional runs (blocks)
+    if c.concat[1] == "acq":
+        infosource = pe.Node(
+            IdentityInterface(fields = ['subID', 'sesID']),
+            name = "infosource")
+        infosource.iterables = [
+            ('subID', c.subIDs),
+            ('sesID', c.sesIDs)]
+
+    elif c.concat[1] == "acq-sessions":
+        infosource = pe.Node(
+            IdentityInterface(fields = ['subID']),
+            name = "infosource")
+        infosource.iterables = [('subID', c.subIDs)]
+
+else:
+    infosource = pe.Node(
+        IdentityInterface(fields = ['subID', 'sesID', 'acqID']),
+        name = "infosource")
+    infosource.iterables = [
+        ('subID', c.subIDs),
+        ('sesID', c.sesIDs),
+        ('acqID', c.acqIDs)]
 
 # T1w Datasink: create output folder for important outputs in T1w space
 datasink_T1w = pe.Node(
@@ -46,16 +61,32 @@ datasink_T1w = pe.Node(
         base_directory = str(c.workDir),
         container = str(c.outDir)
     ),
-    name = "datasink_T1w"
-)
+    name = "datasink_T1w")
+if c.concat[0]:
+    
+    # Concat functional runs (blocks)
+    if c.concat[1] == "acq":
 
-# Output substitutions: correct all Datasink output folder structures
-substitutions = [('_art_detect', '_art_detect')]
-subjFolders = [('_sesID_%s_subID_%s' % (ses, sub),
-				'sub-0%s/ses-0%s' % (sub, ses))
-               for ses in c.sesIDs
-               for sub in c.subIDs]
+        # Output substitutions: correct all Datasink output folder structures
+        subjFolders = [('_sesID_%s_subID_%s' % (ses, sub),
+                        'sub-0%s/ses-0%s' % (sub, ses))
+                       for ses in c.sesIDs
+                       for sub in c.subIDs]
+
+    elif c.concat[1] == "acq-sessions":
+        # Output substitutions: correct all Datasink output folder structures
+        subjFolders = [('_subID_%s' % (sub), 'sub-0%s' % (sub)) for sub in c.subIDs]
+else:
+    # Output substitutions: correct all Datasink output folder structures
+    subjFolders = [('_acqID_%s_sesID_%s_subID_%s' % (acq, ses, sub),
+                        'sub-0%s/ses-0%s/acq-%s' % (sub, ses, acq))
+                       for acq in c.acqIDs
+                       for ses in c.sesIDs
+                       for sub in c.subIDs]
+substitutions = []
 substitutions.extend(subjFolders)
+if c.artDetect:
+    substitutions.extend(('_art_detect', 'art_detect'))
 datasink_T1w.inputs.substitutions = substitutions
 datasink_T1w.inputs.substitutions += [('beta_', f"beta_space-{c.space}_"),]
 datasink_T1w.inputs.substitutions += [('con_',  f"con_space-{c.space}_"),]
@@ -65,19 +96,20 @@ datasink_T1w.inputs.substitutions += [('spmT_', f"spmT_space-{c.space}_"),]
 infohandle = pe.Node(
     Function(
         input_names  = [
-            "subID",
-            "sesID", 
+            "subID", 
             "anatID", 
             "homePath", 
             "mriPath",
             "artPath",
             "space", 
             "task",
+            "ses",
             "acq",
             "run"
         ],
         output_names = [
             "log_paths",
+            "boldref_paths",
             "bold_paths", 
             "mask_paths", 
             "conf_paths",
@@ -99,6 +131,13 @@ infohandle.inputs.mriPath  = str(c.mriPath)
 infohandle.inputs.artPath  = str(c.artPath)
 infohandle.inputs.space    = c.space
 infohandle.inputs.task     = c.task
+infohandle.inputs.run      = None
+if c.concat[1] == "acq-sessions":
+    infohandle.inputs.ses = None
+    infohandle.inputs.acq = None
+elif c.concat[1] == "acq":
+    infohandle.inputs.acq = None
+
 # -------------------------------------------------------------------------------------------------
 # 02. Additional preprocessing nodes: smoothing and outlier detection
 # -------------------------------------------------------------------------------------------------
@@ -183,7 +222,7 @@ unzip = pe.MapNode(
 # https://nipype.readthedocs.io/en/1.1.0/users/model_specification.html
 modeler = pe.Node(
     model.SpecifySPMModel(
-        concatenate_runs = c.concat,
+        concatenate_runs = c.concat[0],
         input_units  = 'secs',
         output_units = 'secs',
         high_pass_filter_cutoff = 128,
@@ -223,10 +262,21 @@ timDev22 = Workflow(name = "l1_timDev")
 timDev22.base_dir = str(c.workDir)
 
 # Specify how the analysis iterates through the data
-timDev22.connect([(infosource, infohandle, [
-    ("subID", "subID"),
-	("sesID", "sesID")
-    ])])
+if c.concat[1] == "acq-sessions":
+    timDev22.connect([(infosource, infohandle, [
+        ("subID", "subID")
+        ])])
+elif c.concat[1] == "acq":
+    timDev22.connect([(infosource, infohandle, [
+        ("subID", "subID"),
+    	("sesID", "ses")
+        ])])
+elif not c.concat[0]:
+    timDev22.connect([(infosource, infohandle, [
+        ("subID", "subID"),
+        ("sesID", "ses"),
+        ("acqID", "acq")
+        ])])
 
 # Parse the logfiles into bunches
 timDev22.connect([
@@ -295,7 +345,10 @@ timDev22.connect([
     (estimator, datasink_T1w, [
         ('spm_mat_file', '1stLevel.@spm_mat_file'),
         ('residual_image', '1stLevel.@residual_image'),
-        ('beta_images', '1stLevel.@beta_images')]),
+        ('beta_images', '1stLevel.@beta_images')])])
+
+if c.artDetect:
+    timDev22.connect([
     (art_detect, datasink_T1w, [
         ('displacement_files', '1stLevel.@displacement_files'),
         ('intensity_files', '1stLevel.@intensity_files'),
@@ -303,10 +356,7 @@ timDev22.connect([
         ('norm_files', '1stLevel.@norm_files'),
         ('outlier_files', '1stLevel.@outlier_files'),
         ('plot_files', '1stLevel.@plot_files'),
-        ('statistic_files', '1stLevel.@statistic_files')
-        ])
-    ])
-
+        ('statistic_files', '1stLevel.@statistic_files')])])
 if c.contrast:
     timDev22.connect([
         (contrastor, datasink_T1w, [
@@ -324,4 +374,4 @@ timDev22.write_graph(graph2use='colored', format='png', simple_form=True)
 # -------------------------------------------------------------------------------------------------
 # MultiProc: Uses the Python multiprocessing library to distribute jobs as new processes (local)
 # SGE or SLURM plugins possible 
-res = timDev22.run('MultiProc')
+res = timDev22.run() # MultiProc

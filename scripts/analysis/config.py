@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <22-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <29-09-2026 m.utrosa@bcbl.eu>
 """
 Configuration for the following scripts:
 - resample_atlas.py
@@ -100,7 +100,7 @@ tapas_cols = [f"RETROICOR_Cardiac_{i+1}" for i in range(6)] + \
              [f"RETROICOR_Multiplicative_{i+1}" for i in range(4)]
 
 # Rapidart nipype node for motion artifact detection
-artDetect = True
+artDetect = False
 if artDetect:
     zintensity_thresh = 15   # detect images that deviate from the mean or previous volume
                              # Default is 3; TODO: lower to reasonable level or remove 1st volume
@@ -110,7 +110,7 @@ if artDetect:
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03b. Specify 1st level analysis options
-concat    = True  # If True, treats runs (acq / BLOCKS) as one continuous series
+concat = [True, "acq"]  # [True/False, "acq"/"acq-sessions"/False]
 hrf_dervs = [0, 0]
 volterra  = False
 smoothing = None  # Set the Gaussian filter width in mm 2.5; defaults to None
@@ -129,7 +129,7 @@ else:
         # Append the contrast tuple
         contrasts.append((cond_name, 'T', conditions, weights_zero))
         contrasts.append((cond_name, 'T', conditions, weights_prop))
-        # print(f"\n{contrasts}")
+        # TODO: remove the double contrast for freqDev!!
 
 # 03c. Specify data handling and plotting preferences for 1st level results
 save_roi       = False  # applies to extracted ROI arrays
@@ -150,7 +150,7 @@ subID  = 5
 anatID = 2
 space  = "T1w" #MNI or T1w TODO: What is the difference between T1w and T1wFOV?
 task   = "timDev"
-sesIDs = [2] # 2, 3, 4, 5, 6, 7
+sesIDs = [5] # 2, 3, 4, 5, 6, 7
 sessions = 2 # appears in the filenames 234567 # TODO: for filenames in plots?
 acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC", "BLOCK2", "BLOCK3", "BLOCK4"
 blocks = "1234" # TODO: Potentially can delete ?

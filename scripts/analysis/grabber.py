@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <2026-28-05 m.utrosa@bcbl.eu>
+# Time-stamp: <2026-29-09 m.utrosa@bcbl.eu>
 
 import bids
 
@@ -9,7 +9,7 @@ def define_grabconf(subject, session, suffix, extension, **kwargs):
 	
 	Arguments:
 		subject     (int): 1, 2, ...
-		session     (int): 1, 2, ...
+		session     (int/False): 1, 2, ... or undefined (False)
 		suffix      (str): 'events', 'T1w', 'physio'
 		extension   (str): 'tsv', 'nii.gz' => without dots !!
 	
@@ -22,12 +22,17 @@ def define_grabconf(subject, session, suffix, extension, **kwargs):
 	Returns: 
 		a configuration dictionary
 	"""
-	grabconf = {
-				'subject'    : f"{subject:02d}",
-				'session'    : f"{session:02d}",
-				'suffix'     : suffix,
-				'extension'  : extension,
-				}
+	if session:
+		grabconf = {
+					'subject'    : f"{subject:02d}",
+					'session'    : f"{session:02d}"}
+	else:
+		grabconf = {'subject'    : f"{subject:02d}"}
+	
+	# Add suffix and extension (mandatory)
+	grabconf['suffix'] = suffix
+	grabconf['extension'] = extension
+	
 	for k, value in kwargs.items():
 		grabconf[k] = value
 
@@ -57,7 +62,6 @@ def grab_BIDS_object(filepath, layout, grabconf):
 		filters['suffix'] = grabconf['suffix']
 	if grabconf.get('extension'):
 		filters['extension'] = grabconf['extension']
-
 	if grabconf.get('task'):
 		filters['task'] = grabconf['task']
 	if grabconf.get('acquisition'):
