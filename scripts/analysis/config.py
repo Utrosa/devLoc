@@ -129,7 +129,7 @@ else:
         # Append the contrast tuple
         contrasts.append((cond_name, 'T', conditions, weights_zero))
         contrasts.append((cond_name, 'T', conditions, weights_prop))
-        print(f"\n{contrasts}")
+        # print(f"\n{contrasts}")
 
 # 03c. Specify data handling and plotting preferences for 1st level results
 save_roi       = False  # applies to extracted ROI arrays

@@ -730,15 +730,13 @@ def resample_img(target, reference, output, method, interpolation, transform="")
     elif method == "ants":
 
         # ANTs command
-        # -d 3: 3D images
         # -i: input moving image (Atlas)
         # -r: reference fixed image (T1w)
-        # -t: transform file (.h5 file for non-linear transformation and .)
+        # -t: transform file (.h5 file for non-linear transformation and .txt for linear)
         # -n NearestNeighbor: critical for ROI labels to prevent interpolation artifacts
         # -o: output path
         cmd = [
             "antsApplyTransforms",
-            "-d", "3",
             "-i", str(input_path),
             "-r", str(reference_path),
             "-t", str(transform_path),
@@ -752,7 +750,7 @@ def resample_img(target, reference, output, method, interpolation, transform="")
         except subprocess.CalledProcessError as e:
             print(f"Erreur lors du resampling : {e.stderr}")
             return False
-        except FileNotFoundError:
+        except subprocess.FileNotFoundError as e:
             print("Erreur: antsApplyTransforms n'est pas trouvé dans le PATH.")
             return False
 

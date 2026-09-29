@@ -66,8 +66,8 @@ for sesID in c.sesIDs:
                 # Check that the resampled file does not already exist 
                 if not beta_new_path.exists():      
                     if c.space == "T1w":
-                        resample_img(beta, T1w_img, beta_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
-                        compare_img(beta, T1w_img, beta_new_path, verbose=c.verbose)
+                        resample_img(beta, 3, T1w_img, beta_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
+                        compare_img(beta, 3, T1w_img, beta_new_path, verbose=c.verbose)
                     else:
                         raise ValueError(f"What is the desired coordinate space? Not T1w nor MNI?")
             # Contrasts
@@ -82,8 +82,8 @@ for sesID in c.sesIDs:
                 # Check that the resampled file does not already exist 
                 if not con_new_path.exists():
                     if c.space == "T1w":     
-                        resample_img(con, T1w_img, con_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
-                        compare_img(con, T1w_img, con_new_path, verbose=c.verbose)
+                        resample_img(con, 3, T1w_img, con_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
+                        compare_img(con, 3, T1w_img, con_new_path, verbose=c.verbose)
                     else:
                         raise ValueError(f"What is the desired coordinate space? Not T1w nor MNI?")
 
@@ -99,7 +99,7 @@ for sesID in c.sesIDs:
                 # Check that the resampled file does not already exist 
                 if not spmt_new_path.exists():
                     if c.space == "T1w":
-                        resample_img(spmt, T1w_img, spmt_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
-                        compare_img(spmt, T1w_img, spmt_new_path, verbose=c.verbose)
+                        resample_img(spmt, 3, T1w_img, spmt_new_path, "ants", "NearestNeighbor", from_boldref_to_T1w)
+                        compare_img(spmt, 3, T1w_img, spmt_new_path, verbose=c.verbose)
                     else:
                         raise ValueError(f"What is the desired coordinate space? Not T1w nor MNI?")

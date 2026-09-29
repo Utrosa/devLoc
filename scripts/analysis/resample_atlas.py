@@ -35,7 +35,7 @@ sitek_05mm = tempPath / f"sub-invivo_MNI_rois.nii.gz"
 MNI_1mm    = tempPath / "tpl-MNI152NLin2009cAsym_res-01_desc-brain_T1w.nii.gz"
 sitek_1mm  = outAtlas / f"sub-invivo_sub-{c.subID:02d}_ses-{c.anatID:02d}_space-MNI152NLin2009cAsym.nii.gz"
 if not sitek_1mm.exists():
-    resample_img(sitek_05mm, MNI_1mm, sitek_1mm, "nilearn", "nearest")
+    resample_img(sitek_05mm, 3, MNI_1mm, sitek_1mm, "nilearn", "nearest")
     if c.verbose:
         compare_img(sitek_05mm, MNI_1mm, sitek_1mm)
 
@@ -44,7 +44,7 @@ T1w = c.anatPath / f"sub-{c.subID:02d}_ses-{c.anatID:02d}_desc-preproc_T1w.nii.g
 from_MNI152NLin2009cAsym_to_T1w = c.anatPath / f"sub-{c.subID:02d}_ses-{c.anatID:02d}_from-MNI152NLin2009cAsym_to-T1w_mode-image_xfm.h5"
 sitek_T1w = outAtlas / f"sub-invivo_sub-{c.subID:02d}_ses-{c.anatID:02d}_space-T1w.nii.gz"
 if not sitek_T1w.exists():
-    resample_img(sitek_1mm, T1w, sitek_T1w, "ants", "NearestNeighbor", from_MNI152NLin2009cAsym_to_T1w)
+    resample_img(sitek_1mm, 3, T1w, sitek_T1w, "ants", "NearestNeighbor", from_MNI152NLin2009cAsym_to_T1w)
     if c.verbose:
         compare_img(sitek_1mm, T1w, sitek_T1w)
 
@@ -72,7 +72,7 @@ if not freesurfer_nii.exists():
 from_fsnative_to_T1w = c.anatPath / f"sub-{c.subID:02d}_ses-{c.anatID:02d}_from-fsnative_to-T1w_mode-image_xfm.txt"
 freesurfer_T1w = outAtlas / f"aparc.a2009s+aseg_sub-{c.subID:02d}_ses-{c.anatID:02d}_NORDIC-{c.denoising}_space-T1w.nii.gz"
 if not freesurfer_T1w.exists():
-    resample_img(freesurfer_nii, T1w, freesurfer_T1w, "ants", "NearestNeighbor", from_fsnative_to_T1w)
+    resample_img(freesurfer_nii, 3, T1w, freesurfer_T1w, "ants", "NearestNeighbor", from_fsnative_to_T1w)
     if c.verbose:
         compare_img(freesurfer_nii, T1w, freesurfer_T1w)
 
@@ -80,6 +80,6 @@ if not freesurfer_T1w.exists():
 from_T1w_to_MNI = c.anatPath / f"sub-{c.subID:02d}_ses-{c.anatID:02d}_from-T1w_to-MNI152NLin2009cAsym_mode-image_xfm.h5"
 freesurfer_MNI  = outAtlas / f"aparc.a2009s+aseg_sub-{c.subID:02d}_ses-{c.anatID:02d}_NORDIC-{c.denoising}_space-MNI152NLin2009cAsym.nii.gz"
 if not freesurfer_MNI.exists():
-    resample_img(freesurfer_T1w, MNI_1mm, freesurfer_MNI, "ants", "NearestNeighbor", from_T1w_to_MNI)
+    resample_img(freesurfer_T1w, 3, MNI_1mm, freesurfer_MNI, "ants", "NearestNeighbor", from_T1w_to_MNI)
     if c.verbose:
         compare_img(freesurfer_T1w, MNI_1mm, freesurfer_MNI)

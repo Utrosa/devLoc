@@ -5,14 +5,13 @@ Grabs objects needed for other scripts.
 Grabs functional and anatomical files in the specified space.
 '''
 
-def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, task, acq=None, run=None):
+def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses=None, acq=None, run=None):
 	"""
 	Locate functional and anatomical objects and returns a tuple of filepaths and TR based on the 
 	specified subject and session. Optionally, you can specify the acquisition and run.
 
 	Args:
 		subID (int): The subject identifier.
-		sesID (str): Session identifier.
 		anatID (int): The identifier of the session in which the anatomical image was obtained.
 		homePath (str): The base directory path.
 		mriPath (str): The path to the MRI data.
@@ -21,9 +20,11 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, task, 
 		task (str): Name of the experimental task that the subject was doing.
 
 	Òptional args:
+		ses (None/int): If None, no session identifier is used to locate files. If int (True),
+						that session ID is used to find files.
 		acq (None/str): If None, no acquisition name is used to locate files. If str (True),
 						that acquisition identifier is used to find files.
-		run (None/str): If None, no run identifier is used to locate files. If str (True),
+		run (None/int): If None, no run identifier is used to locate files. If int (True),
 						that run identifier is used to find files.
 
 	Returns:
@@ -77,12 +78,14 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, task, 
 	mriLayout = bids.layout.BIDSLayout(mriPath, validate=False)
 	artLayout = bids.layout.BIDSLayout(artPath, validate=False)
 
-	# Determine if run and functional acquisition identifiers are used
+	# Determine if session, run and functional acquisition identifiers are used
+	sesID = ses if bool(ses) else None
 	runID = run	if bool(run) else None
 	acqID = acq if bool(acq) else None
 	
 	# -------------- 02 Configuration -------------- 
 	log_conf = grabber.define_grabconf(subID, sesID, "events", "tsv", task=task, acquisition=acqID, run=runID)
+	boldref_conf = grabber.define_grabconf(subID, sesID, "boldref", "nii.gz", task=task, acquisition=acqID, run=runID, space=space)
 	bold_conf = grabber.define_grabconf(subID, sesID, "bold", "nii.gz", task=task, acquisition=acqID, run=runID, space=space)
 	mask_conf = grabber.define_grabconf(subID, sesID, "mask", "nii.gz", task=task, acquisition=acqID, run=runID, space=space)
 	conf_conf = grabber.define_grabconf(subID, sesID, "confounds", "txt", task=task, acquisition=acqID, run=runID)	
@@ -95,6 +98,7 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, task, 
 
 	# -------------- 03 Grabbing files --------------
 	log_object = grabber.grab_BIDS_object(logpath, logLayout, log_conf)
+	boldref_object = grabber.grab_BIDS_object(mriPath, mriLayout, boldref_conf)
 	bold_object = grabber.grab_BIDS_object(mriPath, mriLayout, bold_conf)
 	mask_object = grabber.grab_BIDS_object(mriPath, mriLayout, mask_conf)
 	conf_object = grabber.grab_BIDS_object(artPath, artLayout, conf_conf) # selected confounds
@@ -114,6 +118,7 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, task, 
 
 	# Missing file checks
 	check_object(log_object, "log file", subID, sesID, extra_str, warning_only=True)
+	check_object(boldref_object, "boldref file", subID, sesID, extra_str, warning_only=True)
 	check_object(bold_object, "bold file", subID, sesID, extra_str, warning_only=True)
 	check_object(mask_object, "mask file", subID, sesID, extra_str, warning_only=True)
 	check_object(T1w_object, "T1w file", subID, anatID)
@@ -143,12 +148,13 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, task, 
 		)
 
 	# -------------- 05 Grabing filepaths and Updating --------------
-	log_paths    = [lo.path for lo in log_object]
-	bold_paths   = [bo.path for bo in bold_object]
-	mask_paths   = [mo.path for mo in mask_object]
-	conf_paths   = [co.path for co in conf_object] # selected confounds
-	movpar_paths = [mpo.path for mpo in movpar_object]
-	out_paths    = [oo.path for oo in out_object]  # motion outliers as detected by fMRIPrep
+	log_paths     = [lo.path for lo in log_object]
+	boldref_paths = [br.path for br in boldref_object]
+	bold_paths    = [bo.path for bo in bold_object]
+	mask_paths    = [mo.path for mo in mask_object]
+	conf_paths    = [co.path for co in conf_object] # selected confounds
+	movpar_paths  = [mpo.path for mpo in movpar_object]
+	out_paths     = [oo.path for oo in out_object]  # motion outliers as detected by fMRIPrep
 
 	# Select the anatomical file and print selection to terminal
 	T1w_path = T1w_object[0].path
@@ -189,4 +195,5 @@ def grab_objects(subID, sesID, anatID, homePath, mriPath, artPath, space, task, 
 	warnings.warn("Assuming all to-be-concatenated functional scans have the same TR.")
 	TR = TRs[0]
 
-	return log_paths, bold_paths, mask_paths, conf_paths, reg_paths, movpar_paths, out_paths, T1w_path, T1w_to_MNI_path, orig_to_boldref_paths, boldref_to_T1w_paths, TR
+	return log_paths, boldref_paths, bold_paths, mask_paths, conf_paths, reg_paths, movpar_paths, \
+		   out_paths, T1w_path, T1w_to_MNI_path, orig_to_boldref_paths, boldref_to_T1w_paths, TR
