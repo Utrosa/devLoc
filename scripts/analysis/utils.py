@@ -326,7 +326,7 @@ def plot_violins(mask_paths, subID, sesID, acqIDs, out_dir, space, scale):
         plt.savefig(fig_path, dpi = 200, bbox_inches = "tight")
         plt.close(fig)
 
-def plot_violins_zero_betas(betas, stats, FWER_m, plot_rois, plot_conf, subID, out_dir, space, job, save, show, average_runs, average_voxels):
+def plot_violins_zero_betas(betas, stats, FWER_m, plot_rois, plot_conf, subID, out_dir, space, job, save, show, average_runs, average_voxels, colors):
     """
     Plots the input data per ROI (subplots) and per condition (x axis categories).
     Depending on betas' structure, individual values in violin plots can be per run or per voxel.
@@ -373,7 +373,8 @@ def plot_violins_zero_betas(betas, stats, FWER_m, plot_rois, plot_conf, subID, o
 
     # Get unique values for coloring of violin plots (one per condition)
     conds = df["cond"].unique()
-    violins = sns.color_palette("Set2", n_colors=len(conds))
+    if not colors:
+        colors = sns.color_palette("Set2", n_colors=len(conds))
 
     # Create a grid of subplots
     n_rows = int(np.ceil(len(plot_rois) / plot_conf["cols"]))
@@ -395,7 +396,7 @@ def plot_violins_zero_betas(betas, stats, FWER_m, plot_rois, plot_conf, subID, o
             x="cond",
             y="values",
             hue="cond",
-            palette=violins,
+            palette=colors,
             inner="point", # show individual observations: point
             legend=False,
             cut=0, # limit the violin within the data range
@@ -597,10 +598,10 @@ def plot_violins_betas_paired(selected_betas, stats, threshold, p_value, FWER_m,
 
             # Scatter individual constrast estimate points
             ax.scatter(x_a, roi_df1,
-                    color='black', s=3, alpha=0.6,
+                    color='black', s=3, alpha=0.9,
                     edgecolor='black', linewidth=1, zorder=10)
             ax.scatter(x_b, roi_df2,
-                    color='black', s=3, alpha=0.6,
+                    color='black', s=3, alpha=0.9,
                     edgecolor='black', linewidth=1, zorder=10)
 
             # Draw paired connections

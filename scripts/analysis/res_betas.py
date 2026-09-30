@@ -374,7 +374,8 @@ plot_violins_zero_betas(
 		save=c.save_fig,
 		show=c.show_fig,
 		average_runs=c.average_runs,    # only for the filename
-		average_voxels=c.average_voxels # only for the filename
+		average_voxels=c.average_voxels, # only for the filename
+		colors="viridis" # YlOrBr or viridis or flare
 )
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

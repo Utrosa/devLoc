@@ -29,7 +29,7 @@ denoising    = True  # If True, working in NORDIC Denoised data (preproc)
 verbose      = False
 
 # How do we model deviant events? See deviants.yaml
-timDev_jobName  = "when11"
+timDev_jobName  = "when"
 freqDev_jobName = "what" # False or "what"
 if freqDev_jobName:
     jobName  = timDev_jobName + freqDev_jobName
@@ -110,7 +110,7 @@ if artDetect:
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03b. Specify 1st level analysis options
-concat = [False, False]  
+concat = [True, "acq-ses"]  
 # [True/False, "acq"/"acq-ses"/False]
 # How to concatenate data? If "acq" set, all acq (ignoring the acqIDs parameter)
 # are concatenated for the specified subject and session. For "acq-ses", all
@@ -156,10 +156,10 @@ subID  = 5
 anatID = 2
 space  = "T1w" #MNI or T1w TODO: What is the difference between T1w and T1wFOV?
 task   = "timDev"
-sesIDs = [5] # 2, 3, 4, 5, 6, 7
-sessions = 2 # appears in the filenames 234567 # TODO: for filenames in plots?
-acqIDs = ["BLOCK1", "BLOCK2"] # "FUNLOC", "BLOCK2", "BLOCK3", "BLOCK4"
-blocks = "12" # TODO: Potentially can delete ?
+sesIDs = [2, 3, 4, 5, 6, 7] # 2, 3, 4, 5, 6, 7
+sessions = 234567 # appears in the filenames 234567 # TODO: for filenames in plots?
+acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC", "BLOCK2", "BLOCK3"
+blocks = "1234" # TODO: Potentially can delete ?
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 05. Specify project directories
