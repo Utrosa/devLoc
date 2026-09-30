@@ -40,12 +40,11 @@ if c.concat[0]:
             ('subID', c.subIDs),
             ('sesID', c.sesIDs)]
 
-    elif c.concat[1] == "acq-sessions":
+    elif c.concat[1] == "acq-ses":
         infosource = pe.Node(
             IdentityInterface(fields = ['subID']),
             name = "infosource")
         infosource.iterables = [('subID', c.subIDs)]
-
 else:
     infosource = pe.Node(
         IdentityInterface(fields = ['subID', 'sesID', 'acqID']),
@@ -55,7 +54,8 @@ else:
         ('sesID', c.sesIDs),
         ('acqID', c.acqIDs)]
 
-# T1w Datasink: create output folder for important outputs in T1w space
+# T1w Datasink: create output folder for important outputs in T1w space and define output
+# substitutions (correct all Datasink output folder structures).
 datasink_T1w = pe.Node(
     DataSink(
         base_directory = str(c.workDir),
@@ -63,21 +63,14 @@ datasink_T1w = pe.Node(
     ),
     name = "datasink_T1w")
 if c.concat[0]:
-    
-    # Concat functional runs (blocks)
     if c.concat[1] == "acq":
-
-        # Output substitutions: correct all Datasink output folder structures
         subjFolders = [('_sesID_%s_subID_%s' % (ses, sub),
                         'sub-0%s/ses-0%s' % (sub, ses))
                        for ses in c.sesIDs
                        for sub in c.subIDs]
-
-    elif c.concat[1] == "acq-sessions":
-        # Output substitutions: correct all Datasink output folder structures
+    elif c.concat[1] == "acq-ses":
         subjFolders = [('_subID_%s' % (sub), 'sub-0%s' % (sub)) for sub in c.subIDs]
 else:
-    # Output substitutions: correct all Datasink output folder structures
     subjFolders = [('_acqID_%s_sesID_%s_subID_%s' % (acq, ses, sub),
                         'sub-0%s/ses-0%s/acq-%s' % (sub, ses, acq))
                        for acq in c.acqIDs
@@ -85,8 +78,6 @@ else:
                        for sub in c.subIDs]
 substitutions = []
 substitutions.extend(subjFolders)
-if c.artDetect:
-    substitutions.extend(('_art_detect', 'art_detect'))
 datasink_T1w.inputs.substitutions = substitutions
 datasink_T1w.inputs.substitutions += [('beta_', f"beta_space-{c.space}_"),]
 datasink_T1w.inputs.substitutions += [('con_',  f"con_space-{c.space}_"),]
@@ -132,7 +123,7 @@ infohandle.inputs.artPath  = str(c.artPath)
 infohandle.inputs.space    = c.space
 infohandle.inputs.task     = c.task
 infohandle.inputs.run      = None
-if c.concat[1] == "acq-sessions":
+if c.concat[1] == "acq-ses":
     infohandle.inputs.ses = None
     infohandle.inputs.acq = None
 elif c.concat[1] == "acq":
@@ -262,7 +253,7 @@ timDev22 = Workflow(name = "l1_timDev")
 timDev22.base_dir = str(c.workDir)
 
 # Specify how the analysis iterates through the data
-if c.concat[1] == "acq-sessions":
+if c.concat[1] == "acq-ses":
     timDev22.connect([(infosource, infohandle, [
         ("subID", "subID")
         ])])

@@ -100,7 +100,7 @@ tapas_cols = [f"RETROICOR_Cardiac_{i+1}" for i in range(6)] + \
              [f"RETROICOR_Multiplicative_{i+1}" for i in range(4)]
 
 # Rapidart nipype node for motion artifact detection
-artDetect = False
+artDetect = True
 if artDetect:
     zintensity_thresh = 15   # detect images that deviate from the mean or previous volume
                              # Default is 3; TODO: lower to reasonable level or remove 1st volume
@@ -110,26 +110,32 @@ if artDetect:
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03b. Specify 1st level analysis options
-concat = [True, "acq"]  # [True/False, "acq"/"acq-sessions"/False]
+concat = [False, False]  
+# [True/False, "acq"/"acq-ses"/False]
+# How to concatenate data? If "acq" set, all acq (ignoring the acqIDs parameter)
+# are concatenated for the specified subject and session. For "acq-ses", all
+# acquisitions and session found in the directory are concatenated for the
+# specified subject (ignoring the sesIDs and acqIDs parameters).
+
 hrf_dervs = [0, 0]
 volterra  = False
-smoothing = None  # Set the Gaussian filter width in mm 2.5; defaults to None
+smoothing = 2.5  # Set the Gaussian filter width in mm 2.5; defaults to None
 
 # Contrast specification
 contrast  = True
-if jobName == "whenwhat":
-    contrasts = [(jobName, 'T', conditions, contrast_weights)] # would result in one contrast image
-else:
-    contrasts = []
-    for cond_name in conditions:
-        
-        weights_zero = [1] + [0] * int(len(conditions) - 1)
-        weights_prop = [1] + [1 / int(len(conditions) - 1)] * int(len(conditions) - 1)
+if contrast:
+    if jobName == "whenwhat":
+        contrasts = [(jobName, 'T', conditions, contrast_weights)] # would result in one contrast image
+    else:
+        contrasts = []
+        for cond_name in timDevs:
+            
+            weights_zero = [1] + [0] * int(len(timDevs) - 1)
+            weights_prop = [1] + [1 / int(len(timDevs) - 1)] * int(len(timDevs) - 1)
 
-        # Append the contrast tuple
-        contrasts.append((cond_name, 'T', conditions, weights_zero))
-        contrasts.append((cond_name, 'T', conditions, weights_prop))
-        # TODO: remove the double contrast for freqDev!!
+            # Append the contrast tuple
+            contrasts.append((cond_name, 'T', timDevs, weights_zero))
+            contrasts.append((cond_name, 'T', timDevs, weights_prop))
 
 # 03c. Specify data handling and plotting preferences for 1st level results
 save_roi       = False  # applies to extracted ROI arrays
@@ -152,8 +158,8 @@ space  = "T1w" #MNI or T1w TODO: What is the difference between T1w and T1wFOV?
 task   = "timDev"
 sesIDs = [5] # 2, 3, 4, 5, 6, 7
 sessions = 2 # appears in the filenames 234567 # TODO: for filenames in plots?
-acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC", "BLOCK2", "BLOCK3", "BLOCK4"
-blocks = "1234" # TODO: Potentially can delete ?
+acqIDs = ["BLOCK1", "BLOCK2"] # "FUNLOC", "BLOCK2", "BLOCK3", "BLOCK4"
+blocks = "12" # TODO: Potentially can delete ?
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 05. Specify project directories

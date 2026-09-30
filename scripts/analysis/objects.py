@@ -167,7 +167,7 @@ def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses, ac
 	
 	h5_trans_conf = grabber.define_grabconf(
 		subject = subID,
-		session = sesID,
+		session = anatID,
 		suffix = "xfm", 
 		extension = "h5")
 	
@@ -200,22 +200,21 @@ def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses, ac
 	extra_str = f"{task_str}, {space_str}, {acq_str}, {run_str}"
 
 	# Missing file checks
-	# check_object(log_object, "log file", subID, sesID, extra_str, warning_only=True)
-	# check_object(boldref_object, "boldref file", subID, sesID, extra_str, warning_only=True)
-	# check_object(bold_object, "bold file", subID, sesID, extra_str, warning_only=True)
-	# check_object(mask_object, "mask file", subID, sesID, extra_str, warning_only=True)
-	# check_object(T1w_object, "T1w file", subID, anatID)
-	# check_object(conf_object, "confounds file", subID, sesID, extra_str)
-	# check_object(reg_object, "TAPAS regressors file", subID, sesID, f"{acq_str}, {run_str}", warning_only=True)
-	# check_object(movpar_object, "movement parameters file", subID, sesID, extra_str)
-	# check_object(out_object, "outliers file", subID, sesID, extra_str)
-	# check_object(T1w_to_MNI_object, "T1w to MNI transform file", subID, sesID, extra_str)
+	check_object(log_object, "log file", subID, sesID, extra_str, warning_only=True)
+	check_object(boldref_object, "boldref file", subID, sesID, extra_str, warning_only=True)
+	check_object(bold_object, "bold file", subID, sesID, extra_str, warning_only=True)
+	check_object(mask_object, "mask file", subID, sesID, extra_str, warning_only=True)
+	check_object(T1w_object, "T1w file", subID, anatID)
+	check_object(conf_object, "confounds file", subID, sesID, extra_str)
+	check_object(reg_object, "TAPAS regressors file", subID, sesID, f"{acq_str}, {run_str}", warning_only=True)
+	check_object(movpar_object, "movement parameters file", subID, sesID, extra_str)
+	check_object(out_object, "outliers file", subID, sesID, extra_str)
+	check_object(T1w_to_MNI_object, "T1w to MNI transform file", subID, sesID, extra_str)
 
 	# Transform files
 	if len(func_trans_object) == 0:
 		raise ValueError(
-			f"\nNo orig_to_boldref or boldref_to_T1w transform files found for sub-{subID:02d}, ses-{sesID:02d}{extra_str}"
-		)
+			f"\nNo orig_to_boldref or boldref_to_T1w transform files found for sub-{subID:02d}, ses-{sesID:02d}{extra_str}")
 
 	# Warnings for multiple files
 	if len(T1w_object) > 1:
@@ -226,8 +225,8 @@ def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses, ac
 		names_bold = [Path(btto).name for btto in func_trans_object]
 		warnings.warn(
 			f"\nMultiple transformation files found: \n"
-			f" * orig_to_boldref: {len(names_orig)} \n\n"
-			f" * boldref_to_T1w: {len(names_bold)}")
+			f" * orig_to_boldref: {names_orig} \n\n"
+			f" * boldref_to_T1w: {names_bold}")
 
 	# -------------- 05 Grabing filepaths and Updating --------------
 	log_paths     = [lo.path for lo in log_object]
@@ -252,22 +251,25 @@ def grab_objects(subID, anatID, homePath, mriPath, artPath, space, task, ses, ac
 
 	# Transformation paths
 	T1w_to_MNI_path = []
+	print("\nFor from-T1w_to-MNI selected:\n")
 	for ttMNI in T1w_to_MNI_object:
 		if "from-T1w_to-MNI" in str(ttMNI):
 			T1w_to_MNI_path = ttMNI.path
-			print(f"\nFor from-T1w_to-MNI selected: {Path(ttMNI).name}")
+			print(f"{Path(ttMNI).name}\n")
 
 	orig_to_boldref_paths = []
+	print("\nFor from-orig_to-boldref selected:\n")
 	for otbo in func_trans_object:
 		if "from-orig_to-boldref" in str(otbo):
 			orig_to_boldref_paths.append(otbo.path)
-			print(f"\nFor from-orig_to-boldref selected: {Path(otbo).name}")
+			print(f"{Path(otbo).name}\n")
 
 	boldref_to_T1w_paths = []
+	print("\nFor from-boldref_to-T1w selected:\n")
 	for btto in func_trans_object:
 		if "from-boldref_to-T1w" in str(btto):
 			boldref_to_T1w_paths.append(btto.path)
-			print(f"\nFor from-boldref_to-T1w selected: {Path(btto).name}")
+			print(f"{Path(btto).name}\n")
 
 	# Extract repetition times with PyBIDS methods [sec]
 	TRs = [bo.get_metadata()['RepetitionTime'] for bo in bold_object]
