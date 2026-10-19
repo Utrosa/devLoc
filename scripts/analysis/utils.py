@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <31-08-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <19-10-2026 m.utrosa@bcbl.eu>
 # Citrix: source activate localizer_fMRI
 # Local:  conda activate localizer_fMRI
 

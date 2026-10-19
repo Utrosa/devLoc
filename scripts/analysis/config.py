@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <29-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <19-10-2026 m.utrosa@bcbl.eu>
 """
 Configuration for the following scripts:
 - resample_atlas.py
@@ -114,11 +114,12 @@ volterra  = False
 smoothing = 2.5  # Set the Gaussian filter width in mm 2.5; defaults to None
 
 # How to concatenate data?
-concat = [True, "acq"]
+concat = [True, "acq-ses"]
 # First element: True/False
 # If True: concatenates. If False, does not concatenate (ignores second element).
 # Second element: "acq"/"acq-ses"/False
-# For "acq", all acq are concatenated given subID and sesID.
+# For "acq", all acq are concatenated given subID and sesID (all runs & acq found in the
+# directory are taken!).
 # For "acq-ses", all acq and ses found in the directory (!) are concatenated given subID.
 # For False, data is processed separately for each acq, ses, and sub.
 
@@ -162,10 +163,10 @@ subID  = 5
 anatID = 2
 space  = "T1w" # MNI or T1w TODO: What is the difference between T1w and T1wFOV?
 task   = "timDev"
-sesIDs = [2, 3] # 2, 3, 4, 5, 6, 7
-sessions = 23 # appears in the filenames 234567 # TODO: for filenames in plots?
+sesIDs = [2, 3, 4, 5, 6, 7] # 2, 3, 4, 5, 6, 7
+sessions = 234567 # appears in the filenames 234567 # TODO: for filenames in plots?
 acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC", "BLOCK2", "BLOCK3"
-blocks = "12" # TODO: Potentially can delete ?
+blocks = "1234" # TODO: Potentially can delete ?
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 05. Specify project directories

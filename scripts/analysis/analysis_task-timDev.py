@@ -1,11 +1,12 @@
 #! /usr/bin/env python
-# Time-stamp: <29-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <19-10-2026 m.utrosa@bcbl.eu>
 '''
 fMRI: GLM model fitting with fixed effects
 
 Tutorial
 https://nipype.readthedocs.io/en/latest/users/examples/fmri_nipy_glm.html
 '''
+# WARNING TODO: analysis crashes when concatenating all sessions and acq!
 # Import prerequisites from python and Nipype
 from pathlib import Path
 from nipype.algorithms.misc import Gunzip
@@ -135,6 +136,8 @@ infohandle.inputs.mriPath  = str(c.mriPath)
 infohandle.inputs.artPath  = str(c.artPath)
 infohandle.inputs.space    = c.space
 infohandle.inputs.task     = c.task
+# TODO: the below code is either all or none; would be nice to be able to select
+# which acq or ses from the directory we want to analyze ... but this is minor.
 infohandle.inputs.run      = None
 if c.concat[1] == "acq-ses":
     infohandle.inputs.ses = None
