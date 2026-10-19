@@ -25,15 +25,15 @@ import matplotlib.pyplot as plt
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 02. Define the pipeline 
 develop_mode = True  # If True in developping mode, if False, test mode.
-denoising    = True  # If True, working in NORDIC Denoised data (preproc)
-verbose      = False
+denoising    = True  # If True, working with NORDIC Denoised data.
+verbose      = False # If True, prints extended checks to terminal.
 
 # How do we model deviant events? See deviants.yaml
 timDev_jobName  = "when"
 freqDev_jobName = "what" # False or "what"
 if freqDev_jobName:
     jobName  = timDev_jobName + freqDev_jobName
-else:
+elif not freqDev_jobName:
     jobName = timDev_jobName
 
 # Conditions determine the beta order. Check consistency with SPM design matrix.
@@ -45,9 +45,8 @@ timDevs = timDev["conditions"]
 if freqDev_jobName:
     freqDev  = devs["freqDev"][freqDev_jobName]
     conditions = timDev["conditions"] + freqDev["conditions"]
-
     contrast_weights = timDev["weights"] + freqDev["weights"]
-else:
+elif not freqDev_jobName:
     conditions = timDev["conditions"]
     contrast_weights = timDev["weights"]
 
@@ -110,23 +109,27 @@ if artDetect:
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03b. Specify 1st level analysis options
-concat = [True, "acq-ses"]  
-# [True/False, "acq"/"acq-ses"/False]
-# How to concatenate data? If "acq" set, all acq (ignoring the acqIDs parameter)
-# are concatenated for the specified subject and session. For "acq-ses", all
-# acquisitions and session found in the directory are concatenated for the
-# specified subject (ignoring the sesIDs and acqIDs parameters).
-
 hrf_dervs = [0, 0]
 volterra  = False
 smoothing = 2.5  # Set the Gaussian filter width in mm 2.5; defaults to None
+
+# How to concatenate data?
+concat = [True, "acq"]
+# First element: True/False
+# If True: concatenates. If False, does not concatenate (ignores second element).
+# Second element: "acq"/"acq-ses"/False
+# For "acq", all acq are concatenated given subID and sesID.
+# For "acq-ses", all acq and ses found in the directory (!) are concatenated given subID.
+# For False, data is processed separately for each acq, ses, and sub.
 
 # Contrast specification
 contrast  = True
 if contrast:
     if jobName == "whenwhat":
         contrasts = [(jobName, 'T', conditions, contrast_weights)] # would result in one contrast image
+        con_name = "timDev-freqDev" # contrast label
     else:
+        con_name = [] # contrast label
         contrasts = []
         for cond_name in timDevs:
             
@@ -136,6 +139,9 @@ if contrast:
             # Append the contrast tuple
             contrasts.append((cond_name, 'T', timDevs, weights_zero))
             contrasts.append((cond_name, 'T', timDevs, weights_prop))
+
+            # Append contrast labels
+            con_name.append(cond_name)
 
 # 03c. Specify data handling and plotting preferences for 1st level results
 save_roi       = False  # applies to extracted ROI arrays
@@ -154,12 +160,12 @@ remove_empty   = False  # Remove or not empty arrays (e.g.: If we do not average
 subIDs = [5]
 subID  = 5
 anatID = 2
-space  = "T1w" #MNI or T1w TODO: What is the difference between T1w and T1wFOV?
+space  = "T1w" # MNI or T1w TODO: What is the difference between T1w and T1wFOV?
 task   = "timDev"
-sesIDs = [2, 3, 4, 5, 6, 7] # 2, 3, 4, 5, 6, 7
-sessions = 234567 # appears in the filenames 234567 # TODO: for filenames in plots?
+sesIDs = [2, 3] # 2, 3, 4, 5, 6, 7
+sessions = 23 # appears in the filenames 234567 # TODO: for filenames in plots?
 acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC", "BLOCK2", "BLOCK3"
-blocks = "1234" # TODO: Potentially can delete ?
+blocks = "12" # TODO: Potentially can delete ?
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 05. Specify project directories
@@ -185,11 +191,8 @@ freesurfer_dir = mriPath / "sourcedata" / "freesurfer" / f"sub-{subID:02d}_ses-{
 for p in [outDir, out_2nd, workDir]:
     p.mkdir(parents=True, exist_ok=True)
 
-# Filenames and folders of the 1st level analysis output
 # The 1st level results have to be resampled prior to visualization
-con_name = "timDev-freqDev" # contrast label
-
-# The stemp of the resampled output images
+# The stem of the resampled output images
 resampled_stem = f"space-{space}FOV"
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

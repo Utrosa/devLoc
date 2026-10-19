@@ -521,7 +521,8 @@ def plot_violins_betas_paired(selected_betas, stats, threshold, p_value, FWER_m,
     - Figure with violin subplots either displayed or saved, if sig. pair-wise differences exist.
     """
     # Filter for sig. results
-    betas = stats[stats[p_value] < threshold]
+    # betas = stats[stats[p_value] < threshold]
+    betas = stats
     betas.reset_index(drop=True, inplace=True)
 
     if betas.empty:
@@ -621,10 +622,13 @@ def plot_violins_betas_paired(selected_betas, stats, threshold, p_value, FWER_m,
             p_val  = betas.loc[[row.Index], [p_value]]
             is_sig = p_val < threshold
 
+            # Add reference line at y=0
+            ax.axhline(0, color='black', linestyle='--', linewidth=1.5, alpha=0.8, zorder=1)
+
             # Get y limits
             y_min, y_max = ax.get_ylim()   
             y_range = y_max - y_min
-            star_y = y_max + (y_range * 0.02)
+            star_y = y_max + (y_range * 0.04)
             if plot_conf["rotation"] > 0:
                 text_y = y_max + (y_range * 0.10)
             else:
@@ -755,12 +759,13 @@ def resample_img(target, reference, output, method, interpolation, transform="")
             print("Erreur: antsApplyTransforms n'est pas trouvé dans le PATH.")
             return False
 
-def add_nuisance(bunch_dict, confounds_list, confounds_names):
+def add_nuisance(bunch_dict, confounds_list, confounds_names, concat):
     '''
     Parameters:
         bunch_dict: a list with Bunch objects, created by parsing logfiles of the experimental task.
         confounds_list: list of paths to filtered confounds (physiological regressors files - TAPAS!).
         confounds_names: column names of these confounds/regressors.
+        concat: a boolean, indicating whether data (ses/runs/acq) is concatenated in the analysis or not.
 
     Returns:
         List: a list of lists with bunch objects that include the regressors.
@@ -825,13 +830,14 @@ def add_nuisance(bunch_dict, confounds_list, confounds_names):
 
         # Add regressors
         # https://nipype.readthedocs.io/en/1.11.0/api/generated/nipype.algorithms.modelgen.html
-        # CHECK: They say they want "regressors" for the Bunch but with concatenate=False, modeler fails with that name
-        # and it requires "regress"!
-        design_bunch.regress = valid_regressors
-        design_bunch.regressor_names = confounds_names
+        # Concatenation requires "regressors" and "regressor_names" while no concatenation requires a dict "regress" !!
+        if concat: # True (either "acq" or "acq/ses")
+            design_bunch.regress = [{'name' : confounds_names[i], 'val': valid_regressors[i]} for i in range(len(valid_regressors))]
+        else: # False
+            design_bunch.regressor_names = confounds_names
+            design_bunch.regressors = valid_regressors
 
         # Append to list
         design_bunch_list.append(design_bunch)
     
-
     return design_bunch_list

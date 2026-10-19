@@ -39,12 +39,19 @@ if c.concat[0]:
         infosource.iterables = [
             ('subID', c.subIDs),
             ('sesID', c.sesIDs)]
-
     elif c.concat[1] == "acq-ses":
         infosource = pe.Node(
             IdentityInterface(fields = ['subID']),
             name = "infosource")
         infosource.iterables = [('subID', c.subIDs)]
+    else:
+        infosource = pe.Node(
+            IdentityInterface(fields = ['subID', 'sesID', 'acqID']),
+            name = "infosource")
+        infosource.iterables = [
+            ('subID', c.subIDs),
+            ('sesID', c.sesIDs),
+            ('acqID', c.acqIDs)]
 else:
     infosource = pe.Node(
         IdentityInterface(fields = ['subID', 'sesID', 'acqID']),
@@ -70,9 +77,15 @@ if c.concat[0]:
                        for sub in c.subIDs]
     elif c.concat[1] == "acq-ses":
         subjFolders = [('_subID_%s' % (sub), 'sub-0%s' % (sub)) for sub in c.subIDs]
+    else:
+        subjFolders = [('_acqID_%s_sesID_%s_subID_%s' % (acq, ses, sub),
+                'sub-0%s/ses-0%s/acq-%s' % (sub, ses, acq))
+                   for acq in c.acqIDs
+                   for ses in c.sesIDs
+                   for sub in c.subIDs]
 else:
     subjFolders = [('_acqID_%s_sesID_%s_subID_%s' % (acq, ses, sub),
-                        'sub-0%s/ses-0%s/acq-%s' % (sub, ses, acq))
+                    'sub-0%s/ses-0%s/acq-%s' % (sub, ses, acq))
                        for acq in c.acqIDs
                        for ses in c.sesIDs
                        for sub in c.subIDs]
@@ -194,13 +207,14 @@ bunch_log.inputs.contrast_conditions = c.conditions
 # Add regressors to Bunch
 bunch_reg = pe.Node(
     Function(
-        input_names = ["bunch_dict", "confounds_list", "confounds_names"],
+        input_names = ["bunch_dict", "confounds_list", "confounds_names", "concat"],
         output_names = ["design_bunch_list"],
         function = add_nuisance
     ),
     name = "bunch_reg"
 )
 bunch_reg.inputs.confounds_names = c.tapas_cols #TODO: read from physio.mat > hardcoding
+bunch_reg.inputs.concat = c.concat[1]
 
 # Unzip functional images (preprocessed BOLD)
 unzip = pe.MapNode(
@@ -262,7 +276,7 @@ elif c.concat[1] == "acq":
         ("subID", "subID"),
     	("sesID", "ses")
         ])])
-elif not c.concat[0]:
+elif c.concat[0] == False or c.concat[1] == False:
     timDev22.connect([(infosource, infohandle, [
         ("subID", "subID"),
         ("sesID", "ses"),
