@@ -29,7 +29,7 @@ denoising    = True  # If True, working with NORDIC Denoised data.
 verbose      = False # If True, prints extended checks to terminal.
 
 # How do we model deviant events? See deviants.yaml
-timDev_jobName  = "whenPosNeg"
+timDev_jobName  = "when11"
 freqDev_jobName = "what" # False or "what"
 if freqDev_jobName:
     jobName  = timDev_jobName + freqDev_jobName
@@ -170,8 +170,8 @@ blocks = "1234" # TODO: Potentially can delete ?
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 05. Specify project directories
-# homePath  = Path("/home/mutrosa/mutrosa/Documents/projects/devLoc") # Citrix
-homePath  = Path("/home/mutrosa/Documents/projects/devLoc")           # Local
+homePath  = Path("/home/mutrosa/mutrosa/Documents/projects/devLoc") # Citrix
+# homePath  = Path("/home/mutrosa/Documents/projects/devLoc")           # Local
 baseDir, workDir, outDir = get_base_dirs(homePath, develop_mode, jobName, denoising)
 
 # Define derived paths
