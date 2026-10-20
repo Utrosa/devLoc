@@ -169,10 +169,10 @@ def import_MRI(subID, sesID, anatID, task, project, homePath, acq_list, bidsify=
 				if "part-phase" not in phase:
 					raise ValueError(f"Phase file missing 'part-phase' label: {phase}")
 				
-				# Run NORDING through MATLAB
+				# Run NORDIC through MATLAB
 				nordic_cmd = (
 					 f"addpath('{IMPORT.as_posix()}'); "
-					 f"nordic('{bold}', '{phase}', '{nordPath.as_posix()}'); "
+					 f"nordic('{bold}', '{phase}', '{nordPath.as_posix()}'); " # TODO: add argument about the NOISE SCAN!!! '{last_vol}' 
 					  "exit;")
 				print("\nRunning:", nordic_cmd)
 				subprocess.run(

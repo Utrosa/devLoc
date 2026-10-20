@@ -1,11 +1,12 @@
 #! /usr/bin/env python
-# Time-stamp: <29-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <19-10-2026 m.utrosa@bcbl.eu>
 '''
 fMRI: GLM model fitting with fixed effects
 
 Tutorial
 https://nipype.readthedocs.io/en/latest/users/examples/fmri_nipy_glm.html
 '''
+# WARNING TODO: analysis crashes when concatenating all sessions and acq!
 # Import prerequisites from python and Nipype
 from pathlib import Path
 from nipype.algorithms.misc import Gunzip
@@ -39,12 +40,19 @@ if c.concat[0]:
         infosource.iterables = [
             ('subID', c.subIDs),
             ('sesID', c.sesIDs)]
-
     elif c.concat[1] == "acq-ses":
         infosource = pe.Node(
             IdentityInterface(fields = ['subID']),
             name = "infosource")
         infosource.iterables = [('subID', c.subIDs)]
+    else:
+        infosource = pe.Node(
+            IdentityInterface(fields = ['subID', 'sesID', 'acqID']),
+            name = "infosource")
+        infosource.iterables = [
+            ('subID', c.subIDs),
+            ('sesID', c.sesIDs),
+            ('acqID', c.acqIDs)]
 else:
     infosource = pe.Node(
         IdentityInterface(fields = ['subID', 'sesID', 'acqID']),
@@ -70,9 +78,15 @@ if c.concat[0]:
                        for sub in c.subIDs]
     elif c.concat[1] == "acq-ses":
         subjFolders = [('_subID_%s' % (sub), 'sub-0%s' % (sub)) for sub in c.subIDs]
+    else:
+        subjFolders = [('_acqID_%s_sesID_%s_subID_%s' % (acq, ses, sub),
+                'sub-0%s/ses-0%s/acq-%s' % (sub, ses, acq))
+                   for acq in c.acqIDs
+                   for ses in c.sesIDs
+                   for sub in c.subIDs]
 else:
     subjFolders = [('_acqID_%s_sesID_%s_subID_%s' % (acq, ses, sub),
-                        'sub-0%s/ses-0%s/acq-%s' % (sub, ses, acq))
+                    'sub-0%s/ses-0%s/acq-%s' % (sub, ses, acq))
                        for acq in c.acqIDs
                        for ses in c.sesIDs
                        for sub in c.subIDs]
@@ -122,6 +136,8 @@ infohandle.inputs.mriPath  = str(c.mriPath)
 infohandle.inputs.artPath  = str(c.artPath)
 infohandle.inputs.space    = c.space
 infohandle.inputs.task     = c.task
+# TODO: the below code is either all or none; would be nice to be able to select
+# which acq or ses from the directory we want to analyze ... but this is minor.
 infohandle.inputs.run      = None
 if c.concat[1] == "acq-ses":
     infohandle.inputs.ses = None
@@ -194,13 +210,14 @@ bunch_log.inputs.contrast_conditions = c.conditions
 # Add regressors to Bunch
 bunch_reg = pe.Node(
     Function(
-        input_names = ["bunch_dict", "confounds_list", "confounds_names"],
+        input_names = ["bunch_dict", "confounds_list", "confounds_names", "concat"],
         output_names = ["design_bunch_list"],
         function = add_nuisance
     ),
     name = "bunch_reg"
 )
 bunch_reg.inputs.confounds_names = c.tapas_cols #TODO: read from physio.mat > hardcoding
+bunch_reg.inputs.concat = c.concat[1]
 
 # Unzip functional images (preprocessed BOLD)
 unzip = pe.MapNode(
@@ -262,7 +279,7 @@ elif c.concat[1] == "acq":
         ("subID", "subID"),
     	("sesID", "ses")
         ])])
-elif not c.concat[0]:
+elif c.concat[0] == False or c.concat[1] == False:
     timDev22.connect([(infosource, infohandle, [
         ("subID", "subID"),
         ("sesID", "ses"),
