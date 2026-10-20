@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <19-10-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <20-10-2026 m.utrosa@bcbl.eu>
 """
 Configuration for the following scripts:
 - resample_atlas.py
@@ -29,7 +29,7 @@ denoising    = True  # If True, working with NORDIC Denoised data.
 verbose      = False # If True, prints extended checks to terminal.
 
 # How do we model deviant events? See deviants.yaml
-timDev_jobName  = "when"
+timDev_jobName  = "whenPosNeg"
 freqDev_jobName = "what" # False or "what"
 if freqDev_jobName:
     jobName  = timDev_jobName + freqDev_jobName
@@ -103,9 +103,9 @@ artDetect = True
 if artDetect:
     zintensity_thresh = 15   # detect images that deviate from the mean or previous volume
                              # Default is 3; TODO: lower to reasonable level or remove 1st volume
-    rot_thresh        = 0.4  # in radians! 0.2 - 0.5 mm -> used for FD
+    rot_thresh        = 1    # in radians! 0.2 - 0.5 mm -> used for FD
                              # assuming 50 mm from the center of the head (Power, 2012)
-    trans_thresh      = 0.03 # in mm diff -> used for FD
+    trans_thresh      = 0.04 # in mm diff -> used for FD
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 03b. Specify 1st level analysis options
@@ -114,7 +114,7 @@ volterra  = False
 smoothing = 2.5  # Set the Gaussian filter width in mm 2.5; defaults to None
 
 # How to concatenate data?
-concat = [True, "acq-ses"]
+concat = [True, "acq"]
 # First element: True/False
 # If True: concatenates. If False, does not concatenate (ignores second element).
 # Second element: "acq"/"acq-ses"/False
@@ -146,7 +146,7 @@ if contrast:
 
 # 03c. Specify data handling and plotting preferences for 1st level results
 save_roi       = False  # applies to extracted ROI arrays
-show_fig       = False  # applies to figures with statistical results // blocking function
+show_fig       = True  # applies to figures with statistical results // blocking function
 save_fig       = True   # applies to figures with statistical results
 save_summed    = False  # applies to the contrasts images
 save_averaged  = False  # averaged beta arrays

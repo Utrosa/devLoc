@@ -375,7 +375,7 @@ plot_violins_zero_betas(
 		show=c.show_fig,
 		average_runs=c.average_runs,    # only for the filename
 		average_voxels=c.average_voxels, # only for the filename
-		colors="flare" # YlOrBr or viridis or flare
+		colors="YlOrBr" # YlOrBr or viridis or flare
 )
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -384,7 +384,7 @@ plot_violins_zero_betas(
 # RQ: Which regressor pairs do ROIs distinguish significantly?
 # This figure only makes sense for the
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-if c.jobName == "whenwhat":
+if c.jobName == "whenwhat" or c.jobName == "whenPosNegwhat":
 	if c.average_voxels:
 		plot_violins_betas_paired(
 		selected_betas,
