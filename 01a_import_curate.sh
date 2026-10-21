@@ -8,30 +8,30 @@ subID=5
 anatID=2
 project="devLoc"
 #n_noise_scans=1
-#nordic=1 # If 1, applies NORDIC denoising on functional BOLD images. If 0, skips NORDIC.
+nordic=1 # If 1, applies NORDIC denoising on functional BOLD images. If 0, skips NORDIC.
 
-# Task-specific parameters: task and acqIDs must correspond; except for 
-#task="localizer"
-#acqIDs=("FUNCLOC")
+# Task-specific parameters: task and acqIDs must correspond
+task="localizer"
+acqIDs=("FUNCLOC")
 
 #task="timDev"
 #acqIDs=("BLOCK1" "BLOCK2" "BLOCK3" "BLOCK4")
 
-task="devLoc" # for non-split physio (sessions 2 & 6)
+#task="devLoc" # for non-split physio (sessions 2 & 6)
 #acqIDs=("BLOCK1" "BLOCK2" "BLOCK3" "BLOCK4" "FUNCLOC")
 
 # To which acqIDs do we apply TAPAS?
 # Tapas will find all funcional scans in the dicom folder and
 # will list them based on the acquisition label in alphabetical order.
 # In MATLAB indices start at 1.
-acqIDXs=("1" "2" "3" "4" "5") # "BLOCK1" "BLOCK2" "BLOCK3" "BLOCK4" "FUNCLOC"
+#acqIDXs=("1" "2" "3" "4" "5") # "BLOCK1" "BLOCK2" "BLOCK3" "BLOCK4" "FUNCLOC"
 
 homePath="/home/mutrosa/mutrosa/Documents/projects/devLoc" # Citrix
 #homePath="/home/mutrosa/Documents/projects/devLoc" # Local
 #funcPath="$homePath/data_MRI/sourcedata/denoised"
 
 # Loop through the sessions
-sessions=("2" "6")
+sessions=("2")
 for sesID in "${sessions[@]}"; do
 
 	# STEP 0
@@ -48,23 +48,22 @@ for sesID in "${sessions[@]}"; do
 	# If --bidsify flag is not included, the dicoms are not bidsified.
 	# If --tidy flag is included, original BOLD images are  overwritten with nordic-denoised outputs.
 
-	#echo "**************** STEP 1: Starting curation of MRI data *****************"
+	echo "**************** STEP 1: Starting curation of MRI data *****************"
 
-	#if [[ "$nordic" -eq 1 ]]; then
-	#	python -m scripts.import.import_MRI \
-	#			"$subID" "$sesID" "$anatID" "$task" "$project" \
-	#			"$homePath" "${acqIDs[@]}" \
-	#			--bidsify \
-	#			--nordic
+	if [[ "$nordic" -eq 1 ]]; then
+		python -m scripts.import.import_MRI \
+				"$subID" "$sesID" "$anatID" "$task" "$project" \
+				"$homePath" "${acqIDs[@]}" \
+				--nordic
 
-	#elif [[ "$nordic" -eq 0 ]]; then
-	#	python -m scripts.import.import_MRI \
-	#			"$subID" "$sesID" "$anatID" "$task" "$project" \
-	#			"$homePath" "${acqIDs[@]}" \
-	#			--bidsify
-	#fi
+	elif [[ "$nordic" -eq 0 ]]; then
+		python -m scripts.import.import_MRI \
+				"$subID" "$sesID" "$anatID" "$task" "$project" \
+				"$homePath" "${acqIDs[@]}" \
+				--bidsify
+	fi
 
-	#python -m scripts.import.remove_noise_scan "$homePath" "$funcPath" "$subID" "$sesID" "$task" "$n_noise_scans" --overwrite
+	python -m scripts.import.remove_noise_scan "$homePath" "$funcPath" "$subID" "$sesID" "$task" "$n_noise_scans" --overwrite
 
 	#echo "*************************** Completed STEP 1 ***************************"
 
@@ -87,7 +86,7 @@ for sesID in "${sessions[@]}"; do
 
 	echo "******************** STEP 3: Starting PHYSIO import ********************"
 
-	python -m scripts.import.import_PHYSIO "$subID" "$sesID" "$project" "$task" "$homePath" "${acqIDXs[@]}"
+	# python -m scripts.import.import_PHYSIO "$subID" "$sesID" "$project" "$task" "$homePath" "${acqIDXs[@]}"
 done
 echo "*************************** Completed STEP 3 ***************************"
 
