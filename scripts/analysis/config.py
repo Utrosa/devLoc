@@ -29,7 +29,7 @@ denoising    = True  # If True, working with NORDIC Denoised data.
 verbose      = False # If True, prints extended checks to terminal.
 
 # How do we model deviant events? See deviants.yaml
-timDev_jobName  = "when11"
+timDev_jobName  = "whenPosNeg"
 freqDev_jobName = "what" # False or "what"
 if freqDev_jobName:
     jobName  = timDev_jobName + freqDev_jobName
@@ -103,7 +103,7 @@ artDetect = True
 if artDetect:
     zintensity_thresh = 15   # detect images that deviate from the mean or previous volume
                              # Default is 3; TODO: lower to reasonable level or remove 1st volume
-    rot_thresh        = 1    # in radians! 0.2 - 0.5 mm -> used for FD
+    rot_thresh        = 0.7  # in radians! 0.2 - 0.5 mm -> used for FD
                              # assuming 50 mm from the center of the head (Power, 2012)
     trans_thresh      = 0.04 # in mm diff -> used for FD
 
@@ -170,8 +170,8 @@ blocks = "1234" # TODO: Potentially can delete ?
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 05. Specify project directories
-homePath  = Path("/home/mutrosa/mutrosa/Documents/projects/devLoc") # Citrix
-# homePath  = Path("/home/mutrosa/Documents/projects/devLoc")           # Local
+# homePath  = Path("/home/mutrosa/mutrosa/Documents/projects/devLoc") # Citrix
+homePath  = Path("/home/mutrosa/Documents/projects/devLoc")           # Local
 baseDir, workDir, outDir = get_base_dirs(homePath, develop_mode, jobName, denoising)
 
 # Define derived paths
