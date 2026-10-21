@@ -172,7 +172,7 @@ def import_MRI(subID, sesID, anatID, task, project, homePath, acq_list, bidsify=
 				# Run NORDIC through MATLAB
 				nordic_cmd = (
 					 f"addpath('{IMPORT.as_posix()}'); "
-					 f"NIFTI_NORDIC('{bold}', '{phase}', '{nordPath.as_posix()}', struct('noise_volume_last', 1)); " 
+					 f"nordic('{bold}', '{phase}', '{nordPath.as_posix()}'); " 
 					  "exit;")
 				print("\nRunning:", nordic_cmd)
 				subprocess.run(
