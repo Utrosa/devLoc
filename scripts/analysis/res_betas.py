@@ -384,7 +384,7 @@ plot_violins_zero_betas(
 # RQ: Which regressor pairs do ROIs distinguish significantly?
 # This figure only makes sense for the
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-if c.jobName == "whenwhat":
+if c.jobName == "whenwhat" or c.jobName == "whenPosNegwhat":
 	if c.average_voxels:
 		plot_violins_betas_paired(
 		selected_betas,

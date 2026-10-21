@@ -29,7 +29,7 @@ denoising    = True  # If True, working with NORDIC Denoised data.
 verbose      = False # If True, prints extended checks to terminal.
 
 # How do we model deviant events? See deviants.yaml
-timDev_jobName  = "when11"
+timDev_jobName  = "when22"
 freqDev_jobName = "what" # False or "what"
 if freqDev_jobName:
     jobName  = timDev_jobName + freqDev_jobName
@@ -114,7 +114,7 @@ volterra  = False
 smoothing = 2.5  # Set the Gaussian filter width in mm 2.5; defaults to None
 
 # How to concatenate data?
-concat = [True, "acq-ses"]
+concat = [True, "acq"]
 # First element: True/False
 # If True: concatenates. If False, does not concatenate (ignores second element).
 # Second element: "acq"/"acq-ses"/False
@@ -133,7 +133,8 @@ if contrast:
         con_name = [] # contrast label
         contrasts = []
         for cond_name in timDevs:
-            
+
+            # Create weights against zero and by proportion
             weights_zero = [1] + [0] * int(len(timDevs) - 1)
             weights_prop = [1] + [1 / int(len(timDevs) - 1)] * int(len(timDevs) - 1)
 
