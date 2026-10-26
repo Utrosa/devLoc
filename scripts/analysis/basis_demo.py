@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <09-06-2026 a.tabas@bcbl.eu>
+# Time-stamp: <26-10-2026 a.tabas@bcbl.eu>
 # Minor adaptations by m.utrosa@bcbl.eu
 
 """
@@ -53,19 +53,24 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ------------- Knobs
-basis = 'bspline'          # 'gaussian' or 'bspline'
-betas = np.array([0.0, 0.1, 0.05, 0.8, -0.05, 0.1, -0.1, 0.0]) # Needs to have at least 8 for degree 3
-sigma = 35                  # gaussian width (ignored for bspline)
-uniform_knots = False       # bspline: True = even spacing, False = quantile spacing
+p_degree = 3
+basis = 'bspline'     # 'gaussian' or 'bspline'
+betas = np.array([    # min: K - p_degree + 1
+    0.5,
+    1.0, 
+    0.5, 
+    1.0])
+sigma = 35            # gaussian width (ignored for bspline)
+uniform_knots = True  # bspline: True = even spacing, False = quantile spacing
 
-# Your actual sampled conditions (ms), denser near 0, both signs
+# Your actual sampled conditions (ms), denser near 0
 mags = [0, 4, 8, 13, 19, 27, 36, 48, 63, 80, 100, 125]
 conditions = np.array(sorted(set(mags + [-m for m in mags])))
 
 # ------------- Curve Fitting
 K = len(betas)
 dmin, dmax = conditions.min(), conditions.max()
-d = np.linspace(dmin, dmax, 600)
+d = np.linspace(dmin, dmax, num=50) # 50 is default; num defines shape of array
 
 def gaussian_basis(d, K, sigma):
     '''
@@ -77,7 +82,7 @@ def gaussian_basis(d, K, sigma):
     centers = np.linspace(dmin, dmax, K)
     return np.stack([np.exp(-(d - c)**2 / (2 * sigma**2)) for c in centers], axis=1)
 
-def bspline_basis(d, K, p=3):
+def bspline_basis(d, K, p=p_degree):
     """
     Generate B-spline basis functions for given conditions.
 
@@ -86,7 +91,7 @@ def bspline_basis(d, K, p=3):
         uniform_knots (bool): If True, knots are uniformly spaced. 
                               If False, knots are placed at quantiles of `conditions`.
         conditions (array): The sampled conditions.
-        degree (int): The polynomial degree of the B-spline.
+        degree (int): The polynomial degree of the B-spline. Needs at least 8 knots for degree 3.
 
     Returns:
         numpy.ndarray: A 2D array of shape (len(d), K) where each column 
@@ -108,6 +113,7 @@ def bspline_basis(d, K, p=3):
 
 # ------------- Design matrix of basis functions
 phi = gaussian_basis(d, K, sigma) if basis == 'gaussian' else bspline_basis(d, K)
+print(f"The shape of design matrix: {np.shape(phi)}")
 
 # ------------- Matrix multiplication
 f = phi @ betas

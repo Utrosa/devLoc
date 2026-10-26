@@ -29,8 +29,8 @@ denoising    = True  # If True, working with NORDIC Denoised data.
 verbose      = False # If True, prints extended checks to terminal.
 
 # How do we model deviant events? See deviants.yaml
-timDev_jobName  = "whenPosNeg"
-freqDev_jobName = "what" # False or "what"
+timDev_jobName  = "whenG3"
+freqDev_jobName = False # False or "what"
 if freqDev_jobName:
     jobName  = timDev_jobName + freqDev_jobName
 elif not freqDev_jobName:
@@ -57,7 +57,7 @@ if not len(conditions_int) == len(conditions):
         "The conditions do not match in length. Check configuration/yaml.")
 
 # Design parameters for timing deviancy regressors
-absolute = timDev["absolute"] # Absolute or nomibal timing deviancy regressors?
+absolute = timDev["absolute"] # Absolute or nominal timing deviancy regressors?
 binary   = timDev["binary"]   # If True, magnitude (size) of timing deviants is not considered.
 groups   = timDev["groups"]   # If False, no grouping. Values must be integers.
 
@@ -111,10 +111,10 @@ if artDetect:
 # 03b. Specify 1st level analysis options
 hrf_dervs = [0, 0]
 volterra  = False
-smoothing = 2.5  # Set the Gaussian filter width in mm 2.5; defaults to None
+smoothing = None  # Set the Gaussian filter width in mm 2.5; defaults to None
 
 # How to concatenate data?
-concat = [True, "acq"]
+concat = [True, False]
 # First element: True/False
 # If True: concatenates. If False, does not concatenate (ignores second element).
 # Second element: "acq"/"acq-ses"/False
@@ -163,10 +163,10 @@ subID  = 5
 anatID = 2
 space  = "T1w" # MNI or T1w TODO: What is the difference between T1w and T1wFOV?
 task   = "timDev"
-sesIDs = [2, 3, 4, 5, 6, 7] # 2, 3, 4, 5, 6, 7
-sessions = 234567 # appears in the filenames 234567 # TODO: for filenames in plots?
-acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC", "BLOCK2", "BLOCK3"
-blocks = "1234" # TODO: Potentially can delete ?
+sesIDs = [2] # 2, 3, 4, 5, 6, 7
+sessions = 2 # appears in the filenames 234567 # TODO: for filenames in plots?
+acqIDs = ["BLOCK1"] # "FUNLOC", "BLOCK2", "BLOCK3"
+blocks = "1" # TODO: Potentially can delete ?
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 05. Specify project directories

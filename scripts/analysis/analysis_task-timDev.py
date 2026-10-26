@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <19-10-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <26-10-2026 m.utrosa@bcbl.eu>
 '''
 fMRI: GLM model fitting with fixed effects
 
@@ -23,7 +23,7 @@ import grabber
 import config as c
 from objects import grab_objects
 from designs import timfreqDev
-from utils import add_nuisance
+from utils import add_nuisance, add_pmod
 
 # -------------------------------------------------------------------------------------------------
 # 01. Specify helper nodes
@@ -196,7 +196,7 @@ bunch_log = pe.Node(
             "add_freqDev",
             "contrast_conditions"
         ],
-        output_names = ["timfreq_bunch_dict"],
+        output_names = ["timfreq_bunch_dict", "deltas"],
         function = timfreqDev
     ),
     name = "bunch_log"
@@ -219,6 +219,19 @@ bunch_reg = pe.Node(
 bunch_reg.inputs.confounds_names = c.tapas_cols #TODO: read from physio.mat > hardcoding
 bunch_reg.inputs.concat = c.concat[1]
 
+# Add parametric modulators to Bunch (optional)
+if c.timDev_jobName == "whenG3":
+    bunch_pmod = pe.Node(
+    Function(
+        input_names = ["bunch_list", "deltas", "p_degree"],
+        output_names = ["design_bunch_list"],
+        function = add_pmod
+    ),
+    name = "bunch_pmod"
+)
+    bunch_pmod.inputs.timDev_groups = c.groups
+    bunch_pmod.inputs.p_degree = 1
+
 # Unzip functional images (preprocessed BOLD)
 unzip = pe.MapNode(
     Gunzip(),
@@ -226,7 +239,7 @@ unzip = pe.MapNode(
     iterfield = ["in_file"] 
 )
 
-# --------- A. Generate design information - Specify the SPM model
+# A.Generate design information and SPM Design matrix
 # https://nipype.readthedocs.io/en/1.1.0/users/model_specification.html
 modeler = pe.Node(
     model.SpecifySPMModel(
@@ -239,24 +252,23 @@ modeler = pe.Node(
     name = 'modeler'
 )
 
-# --------- B. Level1Design - Generate an SPM design matrix
 # https://nipype.readthedocs.io/en/latest/api/generated/nipype.interfaces.spm.model.html#nipype.interfaces.spm.model.Level1Design
 designer = pe.Node(
     spm.Level1Design(
-        bases = {'hrf': {'derivs': c.hrf_dervs}}, # TODO: plug in the bases functions from Alex
+        bases = {'hrf': {'derivs': c.hrf_dervs}},
         timing_units = 'secs',
         volterra_expansion_order = (2 if c.volterra else 1)
     ),
     name = 'designer'
 )
 
-# --------- C. Estimate Model - Estimate the parameters of the model
+# --------- B. Estimate Model - Estimate the parameters of the model
 estimator = pe.Node(
     spm.EstimateModel(estimation_method = {'Classical': 1}),
     name = 'estimator'
 )
 
-# --------- D. Contrastor -  Estimate contrasts
+# --------- C. Contrastor -  Estimate contrasts
 if c.contrast:
     contrastor = pe.Node(
         spm.EstimateContrast(contrasts = c.contrasts),
@@ -310,6 +322,7 @@ else:
         (unzip, modeler, [("out_file", "functional_runs")])
     ])
 
+# Add motion outliers
 if c.artDetect:
     
     # Estimate motion outliers
@@ -328,10 +341,17 @@ else:
             ("conf_paths", "realignment_parameters")])])
 
 # Connect to modeler
-timDev22.connect([
-    (infohandle, modeler, [("TR", "time_repetition")]), # TR has to be a float
-    (bunch_reg, modeler, [("design_bunch_list", "subject_info")])
-])
+timDev22.connect([(infohandle, modeler, [("TR", "time_repetition")])]) # TR has to be a float
+
+# Adding parametric modulation or not?
+if c.timDev_jobName == "whenG3":
+    timDev22.connect([
+        (bunch_log, bunch_pmod, [("deltas", "deltas")]),
+        (bunch_reg, bunch_pmod, [("design_bunch_list", "bunch_list")]),
+        (bunch_pmod, modeler, [("design_bunch_list", "subject_info")])])
+else:
+    timDev22.connect([
+        (bunch_reg, modeler, [("design_bunch_list", "subject_info")])])
 
 # Design the matrix
 timDev22.connect([

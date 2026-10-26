@@ -762,7 +762,7 @@ def resample_img(target, reference, output, method, interpolation, transform="")
 def add_nuisance(bunch_dict, confounds_list, confounds_names, concat):
     '''
     Parameters:
-        bunch_dict: a list with Bunch objects, created by parsing logfiles of the experimental task.
+        bunch_dict: a dict with Bunch objects, created by parsing logfiles of the experimental task.
         confounds_list: list of paths to filtered confounds (physiological regressors files - TAPAS!).
         confounds_names: column names of these confounds/regressors.
         concat: a boolean, indicating whether data (ses/runs/acq) is concatenated in the analysis or not.
@@ -840,4 +840,73 @@ def add_nuisance(bunch_dict, confounds_list, confounds_names, concat):
         # Append to list
         design_bunch_list.append(design_bunch)
     
+    return design_bunch_list
+
+def add_pmod(bunch_list, deltas, p_degree):
+    def basisF_for_timDev(timDevs, K, p_degree):
+        import numpy as np
+        from scipy.interpolate import BSpline
+
+        # Calculate interior knot positions
+        dmin, dmax = np.min(timDevs), np.max(timDevs)
+        interior = np.linspace(dmin, dmax, K - p_degree + 1)
+        knots = np.concatenate([[dmin] * p_degree, interior, [dmax] * p_degree])
+
+        # Evaluate all K basis functions at all timDevs at once
+        # BSpline accepts an array of x values
+        basis_vals = np.column_stack([
+            BSpline(knots, np.eye(K)[k], p_degree)(timDevs) for k in range(K)
+        ])
+
+        return basis_vals
+
+    def generate_pmod_bunch(timDev_groups, K, p_degree):
+        from nipype.interfaces.base import Bunch
+
+        pmod_list = []
+        K_dict = {}
+        poly_list = []
+
+        # Iterate through the timing deviancy conditions
+        for group_name, group_vals in timDev_groups.items():
+
+            # Evaluate each timing devinacy for each basis function
+            pmod_vals = basisF_for_timDev(group_vals, K, p_degree)  # shape: (timDev, K)
+            poly_list.append(p_degree)
+
+            # Reshape per basis function
+            group_list = {}
+            for idx, arr in enumerate(pmod_vals):
+                for i in range(len(arr)):
+                    group_list.setdefault(f"basis_func_{i + 1}", []).append(arr[i])
+        
+            for i in range(len(group_list)):
+                K_dict.setdefault(f"basis_func_{i + 1}", []).append(group_list[f"basis_func_{i + 1}"])
+
+        # Construct the bunch list
+        names = list(K_dict.keys())
+        param_vals = {}
+        for name in names:
+            for i in range(len(names)):
+                param_vals.setdefault(f"ev_{i + 1}", []).append(K_dict[name][i])
+        param_flat = []
+        for i in range(len(param_vals)):
+            param_flat.append(param_vals[f"ev_{i + 1}"])
+        
+        for i in range(len(K_dict)):
+            pmod_bunch = Bunch(
+                    name=names,
+                    poly=poly_list,
+                    param=param_flat[i])
+            
+            pmod_list.append(pmod_bunch)
+        
+        return pmod_list
+
+    # Apply the functions to add pmod to a Bunch object
+    design_bunch_list = []
+    for design_bunch in bunch_list:
+        pmod_list = generate_pmod_bunch(deltas, len(deltas), p_degree)
+        design_bunch.pmod = pmod_list
+        design_bunch_list.append(design_bunch)
     return design_bunch_list

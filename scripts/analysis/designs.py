@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <11-09-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <26-10-2026 m.utrosa@bcbl.eu>
 '''
 Defines functions to create SPM design matrices,
 needed for NiPype workflow. These matrices have
@@ -18,7 +18,7 @@ to adapt the analysis for a different design?
 TODO: extend regressors for freqDev (not for my project)
 TODO: all designs could return a dict so we have a mapping between log and bunch
 TODO: add check missing bunch conditions to other functions than timfreqDev
-
+TODO: add events_ungrouped to all designs (listing actual events read from the log file)
 '''
 def localizer(logfilepath):
     """
@@ -467,18 +467,17 @@ def timfreqDev(time_logs, time_binary, time_abs, time_groups, add_freqDev, contr
                 group_values = list(groups.keys())
                 group_names  = list(groups.values())
             
-            # Initialize a dictionary to store that info per timing deviation
+            # Initialize a dictionary to store info per timing deviation
             events_by_dev = {}
+            deltas = {}
             
             # Read info on stimuli onset, duration and trial type from events.tsv file
             with open(time_log, 'r') as logfile:
 
-                # Skip header row
-                next(logfile)
+                next(logfile) # Skip header row
 
                 # Auto-detect delimiter (should be tab)
-                sample = logfile.read(3000)
-                logfile.seek(0)
+                sample = logfile.read(3000); logfile.seek(0)
                 dialect = csv.Sniffer().sniff(sample, delimiters=[";", "\t", ","])
                 
                 # Read the logfile
@@ -500,13 +499,28 @@ def timfreqDev(time_logs, time_binary, time_abs, time_groups, add_freqDev, contr
 
                     # Does the current row correspond to a time deviant tone?
                     if "delta" in deviation_str:
+                        
+                        # Strip to get the delta
+                        delta_str = deviation_str.split("delta-")[1]
+                        delta = delta_str.split("ms")[0]
+                        if "p" in delta:
+                            delta_ungrouped = delta.strip("p")
+                            delta_group = find_dev_group(int(delta_ungrouped), groups)
+                            deltas.setdefault(delta_group, []).append(int(delta_ungrouped))
+                        elif "n" in delta:
+                            delta_ungrouped = delta.strip("n")
+                            delta_group = find_dev_group(-int(delta_ungrouped), groups)
+                            deltas.setdefault(delta_group, []).append(-int(delta_ungrouped))
+                        else:
+                            delta_ungrouped = delta
+                            delta_group = find_dev_group(int(delta_ungrouped), groups)
+                            deltas.setdefault(delta_group, []).append(int(delta_ungrouped))
+
+                        # Assign category to the delta
                         if binary:
                             deviation = "timDev"
                         else:
-                            # Strip to get the delta
-                            delta_str = deviation_str.split("delta-")[1]
-                            delta = delta_str.split("ms")[0]
-                            
+                        
                             # Figure out the direction: positive or negative delta?
                             # Positive deltas
                             if "p" in delta:
@@ -543,6 +557,7 @@ def timfreqDev(time_logs, time_binary, time_abs, time_groups, add_freqDev, contr
             # Sort deviations from negative to positive
             # Important to ensure consistent order in the conditions list
             sorted_deviations = sorted(events_by_dev.keys())
+            sorted_deltas = dict(sorted(deltas.items()))
 
             # Create conditions (a list of strings)
             conditions = [str(i) for i in sorted_deviations]
@@ -560,11 +575,11 @@ def timfreqDev(time_logs, time_binary, time_abs, time_groups, add_freqDev, contr
                 durations=durations
             )
             
-            return design_info
+            return design_info, sorted_deltas
         
         # Create timing deviancy Bunch 
-        time_bunch = timDevCat1(time_log, time_binary, time_abs, time_groups)
-        
+        time_bunch, deltas = timDevCat1(time_log, time_binary, time_abs, time_groups)
+
         # Create frequency deviancy Bunch
         if add_freqDev:
             
@@ -629,14 +644,20 @@ def timfreqDev(time_logs, time_binary, time_abs, time_groups, add_freqDev, contr
         else:
             timfreq_bunch = time_bunch
 
-        # Check that all desired conditions were found in the log.
-        # If not, add them but with empty event onsests and durations
-        conditions_found = timfreq_bunch.conditions
-        timfreq_bunch_corrected = check_for_missing_bunch_conditions(
-            contrast_conditions,
-            conditions_found,
-            timfreq_bunch,
-            time_log)
+
+        if time_groups == False:
+            # Check that all desired conditions were found in the log.
+            # If not, add them but with empty event onsets and durations
+            conditions_found = timfreq_bunch.conditions
+            timfreq_bunch_corrected = check_for_missing_bunch_conditions(
+                contrast_conditions,
+                conditions_found,
+                timfreq_bunch,
+                time_log)
+        else:
+            # No check needed when grouping is applied. The check is relevant when
+            # each task-designed event is modelled on its own (either 22 or 11 timDevs).
+            timfreq_bunch_corrected = timfreq_bunch
 
         # Append to Bunch objects dict
         timfreq_bunch_dict[Path(time_log).stem] = timfreq_bunch_corrected
@@ -648,4 +669,4 @@ def timfreqDev(time_logs, time_binary, time_abs, time_groups, add_freqDev, contr
             f"\nThe Bunch conditions of `timfreqDev` design for {first_key} are:"
             f"\n{first_value.conditions}.")
 
-    return timfreq_bunch_dict
+    return timfreq_bunch_dict, deltas
