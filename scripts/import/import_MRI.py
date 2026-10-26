@@ -109,40 +109,40 @@ def import_MRI(subID, sesID, anatID, task, project, homePath, acq_list, bidsify=
 	
 	# Remove background noise only for the session in which anatomical data
 	# were acquired.
-	if sesID == anatID:
+	# if sesID == anatID:
 
-		anatPath   = dataPath / f"sub-{subID:02d}" / f"ses-{sesID:02d}" / "anat"
-		anatLayout = bids.layout.BIDSLayout(anatPath, validate=False)
+	# 	anatPath   = dataPath / f"sub-{subID:02d}" / f"ses-{sesID:02d}" / "anat"
+	# 	anatLayout = bids.layout.BIDSLayout(anatPath, validate=False)
 
-		INV2_img_conf = grabber.define_grabconf(subID, sesID, "MP2RAGE", "nii.gz", inv=2)
-		UNI_img_conf  = grabber.define_grabconf(subID, sesID, "T1w", "nii.gz")
+	# 	INV2_img_conf = grabber.define_grabconf(subID, sesID, "MP2RAGE", "nii.gz", inv=2)
+	# 	UNI_img_conf  = grabber.define_grabconf(subID, sesID, "T1w", "nii.gz")
 
-		INV2_img = grabber.grab_BIDS_object(anatPath, anatLayout, INV2_img_conf)[0]
-		UNI_img  = grabber.grab_BIDS_object(anatPath, anatLayout, UNI_img_conf)[0]
+	# 	INV2_img = grabber.grab_BIDS_object(anatPath, anatLayout, INV2_img_conf)[0]
+	# 	UNI_img  = grabber.grab_BIDS_object(anatPath, anatLayout, UNI_img_conf)[0]
 
-		mprageise = IMPORT / "MPRAGEise.py"
-		mp2rage_cmd = [
-			str(mprageise),
-			"-i", INV2_img.path,
-			"-u", UNI_img.path,
-			"-o", str(anatPath),
-			]
-		print("\nRunning:", mp2rage_cmd)
-		subprocess.run(mp2rage_cmd, check=True)
+	# 	mprageise = IMPORT / "MPRAGEise.py"
+	# 	mp2rage_cmd = [
+	# 		str(mprageise),
+	# 		"-i", INV2_img.path,
+	# 		"-u", UNI_img.path,
+	# 		"-o", str(anatPath),
+	# 		]
+	# 	print("\nRunning:", mp2rage_cmd)
+	# 	subprocess.run(mp2rage_cmd, check=True)
 		
-		# Remove redundant UNI image
-		Path(UNI_img.path).unlink()
+	# 	# Remove redundant UNI image
+	# 	Path(UNI_img.path).unlink()
 		
-		# Rename the denoised T1 image
-		anatLayout = bids.layout.BIDSLayout(anatPath, validate=False, reset_database=True)
-		T1_conf = grabber.define_grabconf(subID, sesID, "T1w", "nii.gz")
-		T1_img  = grabber.grab_BIDS_object(anatPath, anatLayout, T1_conf)[0]
-		denoised_T1_name = anatPath / f"sub-{subID:02d}_ses-{sesID:02d}_T1w.nii.gz"
-		print(f"\nRenaming {T1_img.filename} as {denoised_T1_name.name}")
-		Path(T1_img.path).rename(denoised_T1_name)
+	# 	# Rename the denoised T1 image
+	# 	anatLayout = bids.layout.BIDSLayout(anatPath, validate=False, reset_database=True)
+	# 	T1_conf = grabber.define_grabconf(subID, sesID, "T1w", "nii.gz")
+	# 	T1_img  = grabber.grab_BIDS_object(anatPath, anatLayout, T1_conf)[0]
+	# 	denoised_T1_name = anatPath / f"sub-{subID:02d}_ses-{sesID:02d}_T1w.nii.gz"
+	# 	print(f"\nRenaming {T1_img.filename} as {denoised_T1_name.name}")
+	# 	Path(T1_img.path).rename(denoised_T1_name)
 
-	else:
-		print(f"\nMP2RAGE background-correction not applied for session {sesID:02d}.\n")
+	# else:
+	# 	print(f"\nMP2RAGE background-correction not applied for session {sesID:02d}.\n")
 
 	# 3. Denoise functional images with NORDIC -------------------------------------
 	# Code: https://github.com/SteenMoeller/NORDIC_Raw/tree/main)
@@ -170,6 +170,7 @@ def import_MRI(subID, sesID, anatID, task, project, homePath, acq_list, bidsify=
 					raise ValueError(f"Phase file missing 'part-phase' label: {phase}")
 				
 				# Run NORDIC through MATLAB
+				print(nordPath.as_posix())
 				nordic_cmd = (
 					 f"addpath('{IMPORT.as_posix()}'); "
 					 f"nordic('{bold}', '{phase}', '{nordPath.as_posix()}'); " 

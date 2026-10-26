@@ -133,7 +133,8 @@ if contrast:
         con_name = [] # contrast label
         contrasts = []
         for cond_name in timDevs:
-            
+
+            # Create weights against zero and by proportion
             weights_zero = [1] + [0] * int(len(timDevs) - 1)
             weights_prop = [1] + [1 / int(len(timDevs) - 1)] * int(len(timDevs) - 1)
 
