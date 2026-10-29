@@ -1,5 +1,5 @@
 #! /usr/bin/env python
-# Time-stamp: <20-10-2026 m.utrosa@bcbl.eu>
+# Time-stamp: <26-10-2026 m.utrosa@bcbl.eu>
 """
 Configuration for the following scripts:
 - resample_atlas.py
@@ -111,7 +111,7 @@ if artDetect:
 # 03b. Specify 1st level analysis options
 hrf_dervs = [0, 0]
 volterra  = False
-smoothing = None  # Set the Gaussian filter width in mm 2.5; defaults to None
+smoothing = 2.5  # Set the Gaussian filter width in mm 2.5; defaults to None
 
 # How to concatenate data?
 concat = [True, False]
@@ -147,7 +147,7 @@ if contrast:
 
 # 03c. Specify data handling and plotting preferences for 1st level results
 save_roi       = False  # applies to extracted ROI arrays
-show_fig       = True  # applies to figures with statistical results // blocking function
+show_fig       = True   # applies to figures with statistical results // blocking function
 save_fig       = True   # applies to figures with statistical results
 save_summed    = False  # applies to the contrasts images
 save_averaged  = False  # averaged beta arrays
@@ -164,10 +164,10 @@ subID  = 5
 anatID = 2
 space  = "T1w" # MNI or T1w TODO: What is the difference between T1w and T1wFOV?
 task   = "timDev"
-sesIDs = [2] # 2, 3, 4, 5, 6, 7
-sessions = 2 # appears in the filenames 234567 # TODO: for filenames in plots?
-acqIDs = ["BLOCK1"] # "FUNLOC", "BLOCK2", "BLOCK3"
-blocks = "1" # TODO: Potentially can delete ?
+sesIDs = [2, 3, 4, 5, 6, 7] # 2, 3, 4, 5, 6, 7
+sessions = 234567 # appears in the filenames 234567 # TODO: for filenames in plots?
+acqIDs = ["BLOCK1", "BLOCK2", "BLOCK3", "BLOCK4"] # "FUNLOC", "BLOCK2", "BLOCK3"
+blocks = "1234" # TODO: Potentially can delete ?
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # 05. Specify project directories
